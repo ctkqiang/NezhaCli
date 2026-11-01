@@ -1,37 +1,10 @@
 package structure
 
 import (
-	"bufio"
-	"errors"
 	"fmt"
-	"io"
+	"os"
 	"strings"
 )
-
-/*
-readLine 输出提示符并读取一行输入。
-输入流关闭时返回 io.EOF，调用方据此结束控制台。
-
-参数:
-  - reader (*bufio.Reader): 标准输入缓冲器。
-  - out (io.Writer): 提示符输出目标。
-  - prompt (string): 提示符文本。
-
-返回:
-  - string: 去除首尾空白后的输入。
-  - error: 读取失败或输入流关闭时返回错误。
-*/
-func readLine(reader *bufio.Reader, out io.Writer, prompt string) (string, error) {
-	fmt.Fprint(out, prompt)
-	line, err := reader.ReadString('\n')
-	if err != nil && len(line) == 0 {
-		return "", err
-	}
-	if errors.Is(err, io.EOF) {
-		return strings.TrimSpace(line), io.EOF
-	}
-	return strings.TrimSpace(line), nil
-}
 
 /*
 parseCommand 把命令行拆分为参数切片，支持双引号包裹含空格的值。
@@ -132,6 +105,8 @@ func (c *Console) promptHelp() {
 
 /*
 readCommand 读取一条命令；输入流关闭时返回 io.EOF。
+交互模式且标准输入为终端时走原始模式行编辑器，支持历史与光标编辑；
+其余输入源退化为整行读取。
 
 参数:
   - 无。
@@ -141,5 +116,8 @@ readCommand 读取一条命令；输入流关闭时返回 io.EOF。
   - error: 输入流关闭或读取失败时返回错误。
 */
 func (c *Console) readCommand() (string, error) {
-	return readLine(c.reader, c.out, c.promptText())
+	if c.raw {
+		return c.editor.ReadLine(os.Stdin, c.out, c.promptText())
+	}
+	return c.editor.ReadLine(c.reader, c.out, c.promptText())
 }

@@ -17,6 +17,8 @@ import (
 	"github.com/ctkqiang/nezha_cli/internal/core"
 	"github.com/ctkqiang/nezha_cli/internal/engine"
 	"github.com/ctkqiang/nezha_cli/internal/model"
+	"github.com/ctkqiang/nezha_cli/internal/readline"
+	"github.com/ctkqiang/nezha_cli/internal/term"
 	"github.com/ctkqiang/nezha_cli/pkg/config"
 	"github.com/ctkqiang/nezha_cli/pkg/logger"
 )
@@ -50,6 +52,12 @@ type Console struct {
 	operator string
 
 	lastErr error
+
+	editor *readline.Editor
+	raw    bool
+
+	inputCustom bool
+	rawRestore  func()
 
 	signalOnce sync.Once
 	signalCh   chan os.Signal
@@ -88,6 +96,7 @@ func New(registry *core.Registry) *Console {
 		history:  make([]string, 0, 64),
 		sessions: make([]Session, 0, 16),
 		operator: operator,
+		editor:   readline.New(),
 	}
 }
 
@@ -130,6 +139,7 @@ SetInput 替换控制台的输入来源，用于测试与脚本化确认。
 */
 func (c *Console) SetInput(input io.Reader) {
 	c.reader = bufio.NewReader(input)
+	c.inputCustom = true
 }
 
 /*
@@ -146,6 +156,9 @@ func (c *Console) Start() error {
 	c.interactive = true
 	c.installSignalHandler()
 
+	c.enableRawMode()
+	defer c.disableRawMode()
+
 	printBanner(c.out, c.color, c.registry)
 	printDashboard(c.out, c.color, len(c.registry.List()), len(c.registry.Categories()), c.operator)
 	c.promptHelp()
@@ -157,6 +170,11 @@ func (c *Console) Start() error {
 	for {
 		line, err := c.readCommand()
 		if err != nil {
+			if errors.Is(err, readline.ErrInterrupted) {
+				c.printInterruptHint()
+				continue
+			}
+			logger.Debug("输入流结束: %v", err)
 			fmt.Fprintln(c.out)
 			return nil
 		}
@@ -164,6 +182,67 @@ func (c *Console) Start() error {
 			return nil
 		}
 	}
+}
+
+/*
+enableRawMode 在标准输入为终端时启用原始模式，支持方向键历史与光标编辑。
+启用失败或非终端输入源时静默退化，不影响脚本与管道模式。
+
+参数:
+  - 无。
+
+返回:
+  - 无。
+*/
+func (c *Console) enableRawMode() {
+	if c.inputCustom {
+		// 输入源已被注入（测试或脚本化确认），不碰真实终端
+		return
+	}
+	info, err := os.Stdin.Stat()
+	if err != nil || info.Mode()&os.ModeCharDevice == 0 {
+		return
+	}
+	restore, err := term.MakeRaw(os.Stdin.Fd())
+	if err != nil {
+		logger.Debug("终端原始模式不可用: %v", err)
+		return
+	}
+	c.raw = true
+	c.rawRestore = restore
+}
+
+/*
+disableRawMode 恢复终端原始设置，进程退出前必须调用。
+
+参数:
+  - 无。
+
+返回:
+  - 无。
+*/
+func (c *Console) disableRawMode() {
+	if c.rawRestore != nil {
+		c.rawRestore()
+		c.rawRestore = nil
+	}
+	c.raw = false
+}
+
+/*
+printInterruptHint 输出空闲状态下的 Ctrl+C 提示。
+
+参数:
+  - 无。
+
+返回:
+  - 无。
+*/
+func (c *Console) printInterruptHint() {
+	fmt.Fprintf(c.out, "%s输入 exit 退出控制台；运行中的模块可用 Ctrl+C 中止。%s\n",
+		colorCode(c.color, palette.Gray),
+		colorCode(c.color, palette.Reset),
+	)
 }
 
 /*
@@ -265,6 +344,7 @@ func (c *Console) Execute(line string) bool {
 	}
 
 	c.history = append(c.history, line)
+	c.editor.AppendHistory(line)
 	arguments := parseCommand(line)
 	command := strings.ToLower(arguments[0])
 
@@ -406,9 +486,8 @@ func (c *Console) confirmImpact() bool {
 		c.selected.Meta.Name,
 		c.selected.Meta.Impact,
 	)
-	fmt.Fprintf(c.out, "仅可对已获得书面授权的目标执行。输入 yes 继续：")
 
-	answer, err := readLine(c.reader, c.out, "")
+	answer, err := c.editor.ReadLine(c.inputSource(), c.out, "仅可对已获得书面授权的目标执行。输入 yes 继续：")
 	if !c.interactive {
 		// 脚本模式下输入不会由终端回显，补一个换行避免后续日志粘在提示符后面。
 		fmt.Fprintln(c.out)
@@ -417,6 +496,22 @@ func (c *Console) confirmImpact() bool {
 		return false
 	}
 	return strings.EqualFold(strings.TrimSpace(answer), "yes")
+}
+
+/*
+inputSource 返回当前输入源：原始模式用标准输入，否则用注入的读取器。
+
+参数:
+  - 无。
+
+返回:
+  - io.Reader: 输入源。
+*/
+func (c *Console) inputSource() io.Reader {
+	if c.raw {
+		return os.Stdin
+	}
+	return c.reader
 }
 
 /*
@@ -445,10 +540,8 @@ func (c *Console) installSignalHandler() {
 					cancel()
 					continue
 				}
-				fmt.Fprintf(c.out, "\n%s输入 exit 退出控制台；运行中的模块可用 Ctrl+C 中止。%s\n",
-					colorCode(c.color, palette.Gray),
-					colorCode(c.color, palette.Reset),
-				)
+				fmt.Fprintln(c.out)
+				c.printInterruptHint()
 			}
 		}()
 	})
