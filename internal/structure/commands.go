@@ -30,7 +30,7 @@ func (c *Console) cmdHelp(arguments []string) {
 	}
 
 	printSection(c.out, c.color, "命令")
-	fmt.Fprint(c.out, renderTable(
+	fmt.Fprint(c.out, renderTable(c.color,
 		[]string{"命令", "用途"},
 		[][]string{
 			{"help [命令]", "查看总览或单条命令用法"},
@@ -60,10 +60,10 @@ func (c *Console) cmdHelp(arguments []string) {
 	))
 
 	printSection(c.out, c.color, "工作流")
-	fmt.Fprintf(c.out, "  %s1.%s search web          # 找模块\n", colorCode(c.color, palette.Green), colorCode(c.color, palette.Reset))
-	fmt.Fprintf(c.out, "  %s2.%s use web              # 选中\n", colorCode(c.color, palette.Green), colorCode(c.color, palette.Reset))
-	fmt.Fprintf(c.out, "  %s3.%s set URL https://...  # 配参\n", colorCode(c.color, palette.Green), colorCode(c.color, palette.Reset))
-	fmt.Fprintf(c.out, "  %s4.%s run                  # 执行\n\n", colorCode(c.color, palette.Green), colorCode(c.color, palette.Reset))
+	fmt.Fprintf(c.out, "  %s1.%s show modules / search 关键词   # 查看内置能力\n", colorCode(c.color, palette.Green), colorCode(c.color, palette.Reset))
+	fmt.Fprintf(c.out, "  %s2.%s use <序号|名称>                # 选中模块\n", colorCode(c.color, palette.Green), colorCode(c.color, palette.Reset))
+	fmt.Fprintf(c.out, "  %s3.%s set <参数> <值>                # 配参；红色必填项必须设置\n", colorCode(c.color, palette.Green), colorCode(c.color, palette.Reset))
+	fmt.Fprintf(c.out, "  %s4.%s run                            # 执行；红色影响模块需输入 yes\n\n", colorCode(c.color, palette.Green), colorCode(c.color, palette.Reset))
 }
 
 /*
@@ -135,7 +135,9 @@ func (c *Console) cmdShow(arguments []string) {
 }
 
 /*
-printModules 渲染模块清单。
+printModules 按类别分组渲染模块清单。
+每个类别单独成段，模块名与影响级别分别着色，
+让操作员像浏览军械库一样看清内置能力与危险等级。
 
 参数:
   - entries ([]*core.Entry): 待展示模块。
@@ -149,28 +151,83 @@ func (c *Console) printModules(entries []*core.Entry) {
 		return
 	}
 
-	rows := make([][]string, 0, len(entries))
+	grouped := make(map[string][]*core.Entry, 8)
 	for _, entry := range entries {
-		impact := dash(entry.Meta.Impact)
-		rows = append(rows, []string{
-			strconv.Itoa(entry.Index),
-			entry.Meta.Name,
-			entry.Meta.Category,
-			impact,
-			entry.Meta.Summary,
-		})
+		grouped[entry.Meta.Category] = append(grouped[entry.Meta.Category], entry)
 	}
 
-	printSection(c.out, c.color, fmt.Sprintf("模块 %d", len(rows)))
-	fmt.Fprint(c.out, renderTable(
-		[]string{"#", "模块", "类别", "影响", "说明"},
-		rows,
-		44,
-	))
-	fmt.Fprintf(c.out, "%s使用 use <序号|名称> 选中模块。%s\n",
+	order := []string{"侦察", "Web", "无线", "系统", "蓝牙"}
+	for _, category := range order {
+		items := grouped[category]
+		if len(items) == 0 {
+			continue
+		}
+		printSection(c.out, c.color, fmt.Sprintf("%s · %d 个模块", category, len(items)))
+
+		rows := make([][]string, 0, len(items))
+		for _, entry := range items {
+			rows = append(rows, []string{
+				strconv.Itoa(entry.Index),
+				paint(c.color, categoryCode(category), entry.Meta.Name),
+				paintImpact(c.color, impactShort(entry.Meta.Impact)),
+				entry.Meta.Summary,
+			})
+		}
+		fmt.Fprint(c.out, renderTable(c.color, []string{"#", "模块", "影响", "说明"}, rows, 46))
+	}
+
+	for category, items := range grouped {
+		known := false
+		for _, name := range order {
+			if name == category {
+				known = true
+				break
+			}
+		}
+		if known || len(items) == 0 {
+			continue
+		}
+		printSection(c.out, c.color, fmt.Sprintf("%s · %d 个模块", category, len(items)))
+		rows := make([][]string, 0, len(items))
+		for _, entry := range items {
+			rows = append(rows, []string{
+				strconv.Itoa(entry.Index),
+				paint(c.color, categoryCode(category), entry.Meta.Name),
+				paintImpact(c.color, impactShort(entry.Meta.Impact)),
+				entry.Meta.Summary,
+			})
+		}
+		fmt.Fprint(c.out, renderTable(c.color, []string{"#", "模块", "影响", "说明"}, rows, 46))
+	}
+
+	fmt.Fprintf(c.out, "%s使用 use <序号|名称> 选中模块。红色影响标记的模块执行前需要输入 yes 确认授权。%s\n",
 		colorCode(c.color, palette.Gray),
 		colorCode(c.color, palette.Reset),
 	)
+}
+
+/*
+impactShort 把影响级别文本压缩为单字徽标。
+形如 "高（会中断目标无线服务）" 的文本只保留级别字 "高"。
+
+参数:
+  - impact (string): 影响级别原文。
+
+返回:
+  - string: 级别字；原文为空时返回空串。
+*/
+func impactShort(impact string) string {
+	impact = strings.TrimSpace(impact)
+	if impact == "" {
+		return ""
+	}
+	if index := strings.Index(impact, "（"); index > 0 {
+		return impact[:index]
+	}
+	if index := strings.Index(impact, "("); index > 0 {
+		return impact[:index]
+	}
+	return impact
 }
 
 /*
@@ -198,12 +255,12 @@ func (c *Console) printOptions() {
 			value = "********"
 		}
 
-		required := "否"
+		required := paint(c.color, palette.Gray, "否")
 		if option.Required {
-			required = "是"
+			required = paint(c.color, palette.Bold+palette.Red, "是")
 		}
 		rows = append(rows, []string{
-			option.Name,
+			paint(c.color, palette.Bold+palette.White, option.Name),
 			required,
 			dash(option.Default),
 			dash(value),
@@ -211,16 +268,21 @@ func (c *Console) printOptions() {
 		})
 	}
 
-	printSection(c.out, c.color, "参数 · "+c.selected.Meta.Name)
-	fmt.Fprint(c.out, renderTable(
+	printSection(c.out, c.color, "模块参数 · "+c.selected.Meta.Name)
+	fmt.Fprint(c.out, renderTable(c.color,
 		[]string{"参数", "必填", "默认", "当前", "说明"},
 		rows,
 		40,
 	))
+	fmt.Fprintf(c.out, "%s红色必填项需要先 set 再 run；敏感参数只显示掩码。%s\n",
+		colorCode(c.color, palette.Gray),
+		colorCode(c.color, palette.Reset),
+	)
 }
 
 /*
-printCategories 渲染模块类别与数量。
+printCategories 渲染类别能力分布条。
+条形图按模块数量占比绘制，一眼看清各方向的能力密度。
 
 参数:
   - 无。
@@ -235,18 +297,39 @@ func (c *Console) printCategories() {
 	}
 
 	names := make([]string, 0, len(counts))
+	total := 0
 	for name := range counts {
 		names = append(names, name)
 	}
-	sort.Strings(names)
-
-	rows := make([][]string, 0, len(names))
+	sort.Slice(names, func(left int, right int) bool {
+		return counts[names[left]] > counts[names[right]]
+	})
 	for _, name := range names {
-		rows = append(rows, []string{name, strconv.Itoa(counts[name])})
+		total += counts[name]
 	}
 
-	printSection(c.out, c.color, "类别")
-	fmt.Fprint(c.out, renderTable([]string{"类别", "模块数"}, rows, 30))
+	printSection(c.out, c.color, fmt.Sprintf("内置能力 · 共 %d 个模块", total))
+
+	maxBar := 34
+	rows := make([][]string, 0, len(names))
+	for _, name := range names {
+		filled := 0
+		if total > 0 {
+			filled = counts[name] * maxBar / total
+			if filled == 0 && counts[name] > 0 {
+				filled = 1
+			}
+		}
+		bar := paint(c.color, categoryCode(name), strings.Repeat("▓", filled)) +
+			paint(c.color, palette.Gray, strings.Repeat("░", maxBar-filled))
+		rows = append(rows, []string{
+			paint(c.color, categoryCode(name), name),
+			bar,
+			fmt.Sprintf("%d 个", counts[name]),
+		})
+	}
+
+	fmt.Fprint(c.out, renderTable(c.color, []string{"类别", "能力分布", "数量"}, rows, 60))
 }
 
 /*
@@ -380,36 +463,36 @@ printModuleCard 渲染模块详情与参数摘要。
 func (c *Console) printModuleCard(entry *core.Entry) {
 	printSection(c.out, c.color, "模块 · "+entry.Meta.Name)
 	rows := [][]string{
-		{"名称", entry.Meta.Name},
-		{"类别", entry.Meta.Category},
-		{"影响", dash(entry.Meta.Impact)},
+		{"名称", paint(c.color, palette.Bold+palette.White, entry.Meta.Name)},
+		{"类别", paint(c.color, categoryCode(entry.Meta.Category), entry.Meta.Category)},
+		{"影响", paintImpact(c.color, entry.Meta.Impact)},
 		{"作者", dash(entry.Meta.Author)},
 		{"说明", entry.Meta.Description},
 	}
-	fmt.Fprint(c.out, renderTable([]string{"字段", "值"}, rows, 60))
+	fmt.Fprint(c.out, renderTable(c.color, []string{"字段", "值"}, rows, 60))
 
 	if len(entry.Meta.Options) > 0 {
 		printSection(c.out, c.color, "参数")
 		optionRows := make([][]string, 0, len(entry.Meta.Options))
 		for _, option := range entry.Meta.Options {
-			required := "否"
+			required := paint(c.color, palette.Gray, "否")
 			if option.Required {
-				required = "是"
+				required = paint(c.color, palette.Bold+palette.Red, "是")
 			}
 			optionRows = append(optionRows, []string{
-				option.Name,
+				paint(c.color, palette.Bold+palette.White, option.Name),
 				required,
 				dash(option.Default),
 				option.Description,
 			})
 		}
-		fmt.Fprint(c.out, renderTable([]string{"参数", "必填", "默认", "说明"}, optionRows, 40))
+		fmt.Fprint(c.out, renderTable(c.color, []string{"参数", "必填", "默认", "说明"}, optionRows, 40))
 	}
 
 	if len(entry.Meta.References) > 0 {
 		fmt.Fprintf(c.out, "%s参考: %s%s\n",
 			colorCode(c.color, palette.Gray),
-			strings.Join(entry.Meta.References, " · "),
+			paint(c.color, palette.Dim+palette.Cyan, strings.Join(entry.Meta.References, " · ")),
 			colorCode(c.color, palette.Reset),
 		)
 	}
@@ -541,13 +624,13 @@ func (c *Console) cmdSessions() {
 
 	rows := make([][]string, 0, len(c.sessions))
 	for _, session := range c.sessions {
-		status := "成功"
+		status := paint(c.color, palette.Green, "成功")
 		if !session.OK {
-			status = "失败"
+			status = paint(c.color, palette.Red, "失败")
 		}
 		rows = append(rows, []string{
 			strconv.Itoa(session.Index),
-			session.Module,
+			paint(c.color, palette.Bold+palette.White, session.Module),
 			session.Started.Format("15:04:05"),
 			session.Duration.Round(time.Millisecond).String(),
 			status,
@@ -556,7 +639,7 @@ func (c *Console) cmdSessions() {
 	}
 
 	printSection(c.out, c.color, "执行记录")
-	fmt.Fprint(c.out, renderTable(
+	fmt.Fprint(c.out, renderTable(c.color,
 		[]string{"#", "模块", "开始", "耗时", "状态", "错误"},
 		rows,
 		42,
