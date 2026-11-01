@@ -1,8 +1,8 @@
 package config
 
 const (
-	// AppVersion 当前应用版本，0.7.0 起重做控制台界面：能力清单横幅、分组模块列表与终端宽度自适应。
-	AppVersion = "0.7.0"
+	// AppVersion 当前应用版本，0.7.1 起加入终端原始模式与行编辑器（历史、光标编辑、CJK 整字处理）。
+	AppVersion = "0.7.1"
 
 	// AppName 应用中文名称。
 	AppName = "哪吒网络安全终端"
