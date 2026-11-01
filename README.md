@@ -102,13 +102,6 @@
 
 ## 快速开始
 
-<p align="center">
-  <img src="docs/img/qr-github.svg" alt="NezhaCli GitHub 仓库二维码" width="160" height="160">
-</p>
-<p align="center">
-  <sub>扫码访问 <a href="https://github.com/ctkqiang/NezhaCli">github.com/ctkqiang/NezhaCli</a></sub>
-</p>
-
 ### Termux / Android ARM64
 
 ```bash
@@ -702,6 +695,28 @@ modules/bin/                可选外部模块目录（默认不存在）
 `wifi_deauth`、`wifi_brute`、`wifi_clone` 会中断无线服务、尝试关联目标 AP 或创建伪造接入点，可能造成服务中断、账户锁定或告警。使用前必须确认目标属于你或已获得书面授权，并遵守当地法律法规。作者不对任何滥用行为负责。
 
 ---
+
+<div align="center">
+
+<h2>支持</h2>
+
+<p>如果您觉得本项目对您有帮助，欢迎请我喝杯咖啡</p>
+<p><sub>您的支持是我持续维护和改进的动力</sub></p>
+
+<br/>
+
+<strong>微信扫码捐赠</strong><br/><br/>
+<img src="https://raw.gitcode.com/ctkqiang_sr/ctkqiang_sr/raw/main/mm_reward_qrcode_1778988737577.png"
+     alt="微信扫码捐赠"
+     width="240"
+     style="border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);" />
+
+<br/>
+<br/>
+
+---
+
+</div>
 
 ## 作者
 
