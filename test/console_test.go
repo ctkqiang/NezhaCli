@@ -353,3 +353,59 @@ func TestConsoleSensitiveOption(t *testing.T) {
 		t.Fatalf("敏感参数应显示占位符:\n%s", output)
 	}
 }
+
+/*
+TestConsoleOptionsAlias 验证 options / option 简写与 show options 等价。
+
+参数:
+  - t (*testing.T): 测试上下文。
+
+返回:
+  - 无。
+*/
+func TestConsoleOptionsAlias(t *testing.T) {
+	console, buffer, _ := newConsole(t)
+	console.Execute("use demo")
+
+	buffer.Reset()
+	console.Execute("options")
+	if !strings.Contains(buffer.String(), "模块参数") {
+		t.Fatalf("options 简写应展示参数表:\n%s", buffer.String())
+	}
+
+	buffer.Reset()
+	console.Execute("option")
+	if !strings.Contains(buffer.String(), "模块参数") {
+		t.Fatalf("option 简写应展示参数表:\n%s", buffer.String())
+	}
+
+	buffer.Reset()
+	console.Execute("show info")
+	if !strings.Contains(buffer.String(), "模块 · demo") {
+		t.Fatalf("show info 应展示模块卡片:\n%s", buffer.String())
+	}
+}
+
+/*
+TestConsoleShellFallback 验证未识别命令会交给系统 shell 执行。
+
+参数:
+  - t (*testing.T): 测试上下文。
+
+返回:
+  - 无。
+*/
+func TestConsoleShellFallback(t *testing.T) {
+	console, buffer, _ := newConsole(t)
+
+	console.Execute("printf shell-ok")
+	if !strings.Contains(buffer.String(), "shell-ok") {
+		t.Fatalf("未识别命令应通过 shell 执行:\n%s", buffer.String())
+	}
+
+	buffer.Reset()
+	console.Execute("command-does-not-exist-xyz")
+	if !strings.Contains(buffer.String(), "退出状态") {
+		t.Fatalf("shell 命令失败应提示退出状态:\n%s", buffer.String())
+	}
+}
