@@ -1,8 +1,11 @@
 package structure
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"os/exec"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -103,6 +106,40 @@ func (c *Console) printCommandHelp(command string) {
 	printSection(c.out, c.color, "用法")
 	fmt.Fprintln(c.out, topic)
 	fmt.Fprintln(c.out)
+}
+
+/*
+cmdShell 把未识别的命令行交给系统 shell 执行，输出直接接入控制台。
+与 msfconsole 类似的本地命令行兜底：ls、pwd、cat、ping 等系统命令
+无需离开控制台即可使用。命令在子进程中执行，因此 cd 之类只影响
+子进程，不会改变控制台自身的工作目录。
+
+参数:
+  - line (string): 原始命令行。
+
+返回:
+  - 无。
+*/
+func (c *Console) cmdShell(line string) {
+	shell := "sh"
+	shellArgs := []string{"-c", line}
+	if runtime.GOOS == "windows" {
+		shell = "cmd"
+		shellArgs = []string{"/C", line}
+	}
+
+	command := exec.Command(shell, shellArgs...)
+	command.Stdin = nil
+	command.Stdout = c.out
+	command.Stderr = c.out
+	if err := command.Run(); err != nil {
+		var exitError *exec.ExitError
+		if errors.As(err, &exitError) {
+			c.info("shell 命令退出状态 %d", exitError.ExitCode())
+			return
+		}
+		c.warn("shell 命令执行失败: %v", err)
+	}
 }
 
 /*

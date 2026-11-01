@@ -404,7 +404,7 @@ func (c *Console) Execute(line string) bool {
 	case "env":
 		c.cmdEnv()
 	default:
-		c.warn("未知命令: %s；输入 help 查看命令列表", arguments[0])
+		c.cmdShell(line)
 	}
 	return true
 }
