@@ -146,8 +146,10 @@ func (c *Console) Start() error {
 	c.interactive = true
 	c.installSignalHandler()
 
-	printBanner(c.out, c.color)
+	printBanner(c.out, c.color, c.registry)
 	printDashboard(c.out, c.color, len(c.registry.List()), len(c.registry.Categories()), c.operator)
+	c.promptHelp()
+	fmt.Fprintln(c.out)
 	if c.selected != nil {
 		c.printModuleCard(c.selected)
 	}
@@ -310,7 +312,7 @@ func (c *Console) Execute(line string) bool {
 	case "load":
 		c.cmdLoad(arguments[1:])
 	case "banner":
-		printBanner(c.out, c.color)
+		printBanner(c.out, c.color, c.registry)
 	case "dashboard":
 		printDashboard(c.out, c.color, len(c.registry.List()), len(c.registry.Categories()), c.operator)
 	case "clear", "cls":
@@ -347,6 +349,13 @@ func (c *Console) cmdRun() {
 		c.warn("操作已取消")
 		return
 	}
+
+	printSection(c.out, c.color, "执行 · "+c.selected.Meta.Name)
+	fmt.Fprintf(c.out, "%s%s%s\n",
+		colorCode(c.color, palette.Gray),
+		c.selected.Meta.Summary,
+		colorCode(c.color, palette.Reset),
+	)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	c.runMu.Lock()
@@ -463,14 +472,14 @@ func (c *Console) cmdEnv() {
 		for key, value := range c.globals {
 			rows = append(rows, []string{key, value})
 		}
-		fmt.Fprint(c.out, renderTable([]string{"参数", "值"}, rows, 48))
+		fmt.Fprint(c.out, renderTable(c.color, []string{"参数", "值"}, rows, 48))
 	}
 
 	if c.selected == nil {
 		return
 	}
 	printSection(c.out, c.color, "当前模块参数")
-	fmt.Fprint(c.out, renderTable(
+	fmt.Fprint(c.out, renderTable(c.color,
 		[]string{"参数", "当前值"},
 		c.optionRows(),
 		56,

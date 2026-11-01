@@ -87,11 +87,47 @@ promptText 生成当前控制台提示符。
 func (c *Console) promptText() string {
 	prefix := paint(c.color, palette.Bold+palette.Green, "nezha")
 	if c.selected != nil {
+		moduleColor := palette.Yellow
+		if strings.TrimSpace(c.selected.Meta.Impact) != "" {
+			moduleColor = palette.Bold + palette.Red
+		}
 		return prefix + paint(c.color, palette.Gray, " (") +
-			paint(c.color, palette.Yellow, c.selected.Meta.Name) +
+			paint(c.color, moduleColor, c.selected.Meta.Name) +
 			paint(c.color, palette.Gray, ") > ")
 	}
 	return prefix + paint(c.color, palette.Gray, " > ")
+}
+
+/*
+promptHelp 输出启动后的快速上手提示，引导操作员三步完成一次任务。
+
+参数:
+  - 无。
+
+返回:
+  - 无。
+*/
+func (c *Console) promptHelp() {
+	fmt.Fprintf(c.out, "%s%s\n",
+		paint(c.color, palette.Bold+palette.White, "三步上手："),
+		paint(c.color, palette.Gray, "所有能力都已内置，无需安装任何外部工具"),
+	)
+	fmt.Fprintf(c.out, "  %s %s\n",
+		paint(c.color, palette.Cyan, "show modules"),
+		paint(c.color, palette.Gray, "查看全部内置能力（按类别分组）"),
+	)
+	fmt.Fprintf(c.out, "  %s %s\n",
+		paint(c.color, palette.Cyan, "use <序号|名称>"),
+		paint(c.color, palette.Gray, "选中模块"),
+	)
+	fmt.Fprintf(c.out, "  %s %s\n",
+		paint(c.color, palette.Cyan, "set <参数> <值>"),
+		paint(c.color, palette.Gray, "配置参数（红色必填项必须设置）"),
+	)
+	fmt.Fprintf(c.out, "  %s %s\n",
+		paint(c.color, palette.Green, "run"),
+		paint(c.color, palette.Gray, "执行；红色影响模块需输入 yes 确认授权"),
+	)
 }
 
 /*
