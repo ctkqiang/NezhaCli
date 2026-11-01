@@ -1,8 +1,8 @@
 package config
 
 const (
-	// AppVersion 当前应用版本，0.6.0 起加入战场脚本化控制与基础工具模块（hash/encode/random/connect/http/crunch）。
-	AppVersion = "0.6.0"
+	// AppVersion 当前应用版本，0.7.0 起重做控制台界面：能力清单横幅、分组模块列表与终端宽度自适应。
+	AppVersion = "0.7.0"
 
 	// AppName 应用中文名称。
 	AppName = "哪吒网络安全终端"
