@@ -353,6 +353,8 @@ func (c *Console) Execute(line string) bool {
 		c.cmdHelp(arguments[1:])
 	case "show":
 		c.cmdShow(arguments[1:])
+	case "options", "option":
+		c.printOptions()
 	case "search":
 		c.cmdSearch(strings.Join(arguments[1:], " "))
 	case "use":

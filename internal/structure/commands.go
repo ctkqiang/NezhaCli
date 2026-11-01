@@ -162,6 +162,8 @@ func (c *Console) cmdShow(arguments []string) {
 		c.printModules(c.registry.List())
 	case "options":
 		c.printOptions()
+	case "info":
+		c.cmdInfo()
 	case "categories":
 		c.printCategories()
 	case "globals":
