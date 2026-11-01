@@ -32,8 +32,9 @@ if [ "$LINE_COUNT" -lt 2 ]; then
 fi
 
 # 4. 主题行不应超过 72 字符，过长说明概括不足
+# 使用 ${#SUBJECT} 按字符计数，中文标题不会被 UTF-8 字节长度误判
 SUBJECT=$(echo "$COMMIT_MESSAGE" | sed -n '1p')
-SUBJECT_LENGTH=$(printf '%s' "$SUBJECT" | wc -c | tr -d ' ')
+SUBJECT_LENGTH=${#SUBJECT}
 if [ "$SUBJECT_LENGTH" -gt 72 ]; then
     echo "==> 主题行超过 72 字符（当前 $SUBJECT_LENGTH），请精简概括"
     exit 1
