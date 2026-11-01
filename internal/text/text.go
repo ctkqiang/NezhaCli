@@ -3,6 +3,8 @@ package text
 
 import (
 	"fmt"
+	"os"
+	"strconv"
 	"strings"
 	"unicode"
 )
@@ -19,7 +21,42 @@ const (
 
 	// defaultMaxWidth 是单列默认最大显示宽度，避免窄屏换行破坏对齐。
 	defaultMaxWidth = 48
+
+	// minTermWidth 是终端宽度下限，低于该值按该值处理。
+	minTermWidth = 40
+
+	// defaultTermWidth 是读不到 COLUMNS 时的终端宽度。
+	defaultTermWidth = 80
 )
+
+// TableStyle 描述表格的着色样式，颜色码为空时保持纯文本。
+type TableStyle struct {
+	Border string
+	Header string
+	Body   string
+	Reset  string
+}
+
+/*
+TermWidth 返回当前终端宽度，用于横幅、表格与标尺自适应。
+优先读取 COLUMNS 环境变量，读不到时使用 80 列；下限 40 列防止极端窄屏。
+
+参数:
+  - 无。
+
+返回:
+  - int: 终端列数。
+*/
+func TermWidth() int {
+	columns, err := strconv.Atoi(strings.TrimSpace(os.Getenv("COLUMNS")))
+	if err != nil || columns <= 0 {
+		return defaultTermWidth
+	}
+	if columns < minTermWidth {
+		return minTermWidth
+	}
+	return columns
+}
 
 /*
 Width 计算字符串在终端中的显示宽度，跳过 ANSI 转义序列。
@@ -71,6 +108,7 @@ func PadRight(value string, width int) string {
 
 /*
 Truncate 按显示宽度截断字符串，并在末尾保留省略号。
+字符串内的 ANSI 转义序列不计宽度并原样保留，保证着色不因截断而断裂。
 
 参数:
   - value (string): 原始字符串。
@@ -91,7 +129,20 @@ func Truncate(value string, width int) string {
 	limit := width - 1
 	var builder strings.Builder
 	current := 0
+	inEscape := false
 	for _, char := range value {
+		if inEscape {
+			builder.WriteRune(char)
+			if char == 'm' {
+				inEscape = false
+			}
+			continue
+		}
+		if char == ansiEscape {
+			builder.WriteRune(char)
+			inEscape = true
+			continue
+		}
 		charWidth := runeWidth(char)
 		if current+charWidth > limit {
 			break
@@ -105,7 +156,7 @@ func Truncate(value string, width int) string {
 
 /*
 Table 渲染带边框的等宽表格，中文按两个终端列计算宽度。
-超长单元格会被截断并追加省略号。
+超长单元格会被截断并追加省略号；本函数等价于无样式的 TableStyled。
 
 参数:
   - headers ([]string): 表头。
@@ -116,6 +167,24 @@ Table 渲染带边框的等宽表格，中文按两个终端列计算宽度。
   - string: 可直接写入终端的表格文本。
 */
 func Table(headers []string, rows [][]string, maxWidth int) string {
+	return TableStyled(headers, rows, maxWidth, TableStyle{})
+}
+
+/*
+TableStyled 渲染带样式着色的等宽表格。
+Border 作用于边框线，Header 作用于表头单元格，Body 作用于数据单元格；
+颜色码为空时保持纯文本。单元格自带 ANSI 颜色时按原有颜色展示。
+
+参数:
+  - headers ([]string): 表头。
+  - rows ([][]string): 数据行。
+  - maxWidth (int): 单列最大显示宽度。
+  - style (TableStyle): 着色样式。
+
+返回:
+  - string: 可直接写入终端的表格文本。
+*/
+func TableStyled(headers []string, rows [][]string, maxWidth int, style TableStyle) string {
 	if maxWidth <= 0 {
 		maxWidth = defaultMaxWidth
 	}
@@ -140,13 +209,13 @@ func Table(headers []string, rows [][]string, maxWidth int) string {
 	}
 
 	var builder strings.Builder
-	builder.WriteString(borderLine(widths, "┌", "┬", "┐"))
-	builder.WriteString(tableRow(headers, widths))
-	builder.WriteString(borderLine(widths, "├", "┼", "┤"))
+	builder.WriteString(borderLine(widths, "┌", "┬", "┐", style.Border, style.Reset))
+	builder.WriteString(tableRow(headers, widths, style.Header, style.Reset))
+	builder.WriteString(borderLine(widths, "├", "┼", "┤", style.Border, style.Reset))
 	for _, row := range rows {
-		builder.WriteString(tableRow(row, widths))
+		builder.WriteString(tableRow(row, widths, style.Body, style.Reset))
 	}
-	builder.WriteString(borderLine(widths, "└", "┴", "┘"))
+	builder.WriteString(borderLine(widths, "└", "┴", "┘", style.Border, style.Reset))
 	return builder.String()
 }
 
@@ -197,36 +266,45 @@ func Printf(builder *strings.Builder, format string, arguments ...any) {
 }
 
 /*
-borderLine 生成表格的水平边框。
+borderLine 生成表格的水平边框，可用样式着色。
 
 参数:
   - widths ([]int): 每列显示宽度。
   - left (string): 左边角字符。
   - middle (string): 交叉字符。
   - right (string): 右边角字符。
+  - color (string): 边框颜色码，空串表示不着色。
+  - reset (string): 复位码，与 color 配合使用。
 
 返回:
   - string: 一行边框文本。
 */
-func borderLine(widths []int, left string, middle string, right string) string {
+func borderLine(widths []int, left string, middle string, right string, color string, reset string) string {
 	segments := make([]string, len(widths))
 	for index, width := range widths {
 		segments[index] = strings.Repeat("─", width+tablePadding*2)
 	}
-	return left + strings.Join(segments, middle) + right + "\n"
+	line := left + strings.Join(segments, middle) + right
+	if color != "" {
+		return color + line + reset + "\n"
+	}
+	return line + "\n"
 }
 
 /*
 tableRow 生成一行表格内容，并按列宽补齐或截断。
+可选 color 着色整行单元格；单元格自带颜色时原样保留。
 
 参数:
   - cells ([]string): 单元格内容。
   - widths ([]int): 每列显示宽度。
+  - color (string): 单元格颜色码，空串表示不着色。
+  - reset (string): 复位码。
 
 返回:
   - string: 一行表格文本。
 */
-func tableRow(cells []string, widths []int) string {
+func tableRow(cells []string, widths []int, color string, reset string) string {
 	var builder strings.Builder
 	builder.WriteString("│")
 	for index, width := range widths {
@@ -235,6 +313,9 @@ func tableRow(cells []string, widths []int) string {
 			value = cells[index]
 		}
 		value = Truncate(value, width)
+		if color != "" && !strings.Contains(value, "\x1b") {
+			value = color + value + reset
+		}
 		builder.WriteString(" ")
 		builder.WriteString(value)
 		builder.WriteString(strings.Repeat(" ", width-Width(value)))
