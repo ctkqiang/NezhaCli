@@ -1,0 +1,50 @@
+#!/bin/sh
+
+set -u
+
+# 检查日志统一写入临时文件，成功时保持安静，失败时回显完整输出
+LOGFILE=$(mktemp)
+trap 'rm -f "$LOGFILE"' EXIT
+
+# 暂存区中待提交的 .go 文件（排除已删除的 D）
+STAGED_GO_FILES=$(git diff --cached --name-only --diff-filter=ACM -- '*.go')
+
+if [ -n "$STAGED_GO_FILES" ]; then
+    UNFORMATTED=$(gofmt -l $STAGED_GO_FILES)
+    if [ -n "$UNFORMATTED" ]; then
+        echo "==> gofmt 检查未通过:"
+        echo "$UNFORMATTED"
+        echo "==> 请先运行 go fmt ./...，再 git add 后重新提交"
+        exit 1
+    fi
+fi
+
+# test/ 目录仅存放 *_test.go 测试文件，不产生构建产物，需从 build 目标中排除
+BUILD_TARGETS=$(go list ./... | grep -v '/test$')
+if ! go build $BUILD_TARGETS >"$LOGFILE" 2>&1; then
+    echo "==> go build 失败，提交已中止:"
+    cat "$LOGFILE"
+    exit 1
+fi
+
+if ! go test ./... >"$LOGFILE" 2>&1; then
+    echo "==> go test 失败，提交已中止:"
+    cat "$LOGFILE"
+    exit 1
+fi
+
+if ! go vet ./... >"$LOGFILE" 2>&1; then
+    echo "==> go vet 未通过，提交已中止:"
+    cat "$LOGFILE"
+    exit 1
+fi
+
+# golangci-lint 仅作尽力而为检查：本机安装的构建版本可能落后于 go.mod 声明的
+# 语言版本，此时只给出告警而不阻止提交，避免误伤正常的开发流程
+if command -v golangci-lint >/dev/null 2>&1; then
+    if ! golangci-lint run >"$LOGFILE" 2>&1; then
+        echo "==> golangci-lint 未通过（告警，不阻止提交）"
+    fi
+fi
+
+exit 0
