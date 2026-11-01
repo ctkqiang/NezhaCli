@@ -489,6 +489,21 @@ func (c *Console) printModuleCard(entry *core.Entry) {
 		fmt.Fprint(c.out, renderTable(c.color, []string{"参数", "必填", "默认", "说明"}, optionRows, 40))
 	}
 
+	if usage := strings.TrimSpace(entry.Meta.Usage); usage != "" {
+		printSection(c.out, c.color, "用法")
+		for _, step := range strings.Split(usage, "\n") {
+			step = strings.TrimSpace(step)
+			if step == "" {
+				continue
+			}
+			fmt.Fprintf(c.out, "  %s%s%s\n",
+				colorCode(c.color, palette.Dim),
+				paint(c.color, palette.Green, "nezha > "),
+				paint(c.color, palette.White, step),
+			)
+		}
+	}
+
 	if len(entry.Meta.References) > 0 {
 		fmt.Fprintf(c.out, "%s参考: %s%s\n",
 			colorCode(c.color, palette.Gray),
