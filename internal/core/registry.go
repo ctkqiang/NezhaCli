@@ -166,6 +166,7 @@ func (r *Registry) Search(keyword string) []*Entry {
 			entry.Meta.Category,
 			entry.Meta.Summary,
 			entry.Meta.Description,
+			entry.Meta.Usage,
 		}, " "))
 
 		matched := true

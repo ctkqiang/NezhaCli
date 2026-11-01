@@ -25,6 +25,7 @@ type Meta struct {
 	Category    string
 	Summary     string
 	Description string
+	Usage       string
 	Author      string
 	References  []string
 	Options     []Option
