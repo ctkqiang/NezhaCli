@@ -1,8 +1,8 @@
 package main
 
 import (
-	"nezha_cli/pkg/config"
-	"nezha_cli/pkg/logger"
+	"github.com/ctkqiang/nezha_cli/pkg/config"
+	"github.com/ctkqiang/nezha_cli/pkg/logger"
 )
 
 func main() {
