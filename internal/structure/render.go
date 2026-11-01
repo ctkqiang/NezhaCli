@@ -235,12 +235,20 @@ func printDashboard(out io.Writer, color bool, modules int, categories int, oper
 	}
 	for _, row := range rows {
 		key := " " + row[0] + " "
-		valueWidth := width - text.Width(key) - 2
-		fmt.Fprintf(out, "%s│%s%s%s%s│%s\n",
+		valueWidth := width - text.Width(key)
+		if valueWidth < 1 {
+			valueWidth = 1
+		}
+
+		valueColor := palette.White
+		if row[0] == "授权状态" {
+			valueColor = palette.Red
+		}
+
+		fmt.Fprintf(out, "%s│%s%s%s│%s\n",
 			colorCode(color, palette.Gray),
 			paint(color, palette.Bold+palette.Cyan, key),
-			colorCode(color, palette.Gray),
-			paint(color, palette.White, padRight(row[1], valueWidth)),
+			paint(color, valueColor, padRight(row[1], valueWidth)),
 			colorCode(color, palette.Gray),
 			colorCode(color, palette.Reset),
 		)
