@@ -61,17 +61,25 @@ func (m *Module) Meta() model.Meta {
 		Aliases:  []string{"tactics", "techniques", "mitreredteam"},
 		Category: modulekit.CategorySystem,
 		Summary:  "MITRE 战术/技术目录与执行映射",
-		Description: "移植自作者的 MITRERedTeam 项目：内置 BB01-BB25 共 25 条战术与 27 条已定义技术，\n" +
-			"数据与上游 catalog/*.json 一致，执行器名称映射到本控制台原生模块。\n" +
+		Description: "检索内置 BB01-BB25 战术目录与 27 条技术，并映射到本控制台原生模块。\n" +
+			"适用于授权评估的规划阶段：浏览战术、按条件过滤技术、查看单条详情。\n" +
 			"只做目录检索与命令规划，不自动编排任何超出声明范围的动作；\n" +
-			"显式执行、证据优先，与上游执行哲学保持一致。",
+			"数据与上游 catalog/*.json 一致，显式执行、证据优先。\n" +
+			"可与 whois/dns/portscan 等模块配合，按目录映射落地执行。",
+		Usage: "use mitre\n" +
+			"set TACTIC BB01\n" +
+			"set QUERY dns\n" +
+			"run",
 		Author: modulekit.Author,
-		Options: []model.Option{
-			modulekit.Option("TACTIC", "按战术过滤，例如 BB01 或 侦察", false, ""),
-			modulekit.Option("QUERY", "按名称/描述/编号检索技术", false, ""),
-			modulekit.Option("TECHNIQUE", "查看单条技术详情，例如 BB10.001", false, ""),
+		References: []string{
+			"https://github.com/ctkqiang/NezhaCli",
+			"https://attack.mitre.org/",
 		},
-		References: []string{"https://github.com/ctkqiang/MITRERedTeam"},
+		Options: []model.Option{
+			modulekit.Option("TACTIC", "按战术过滤；支持编号如 BB01 或中文名如 侦察", false, ""),
+			modulekit.Option("QUERY", "按编号/名称/描述/执行器检索；可与 TACTIC 叠加过滤", false, ""),
+			modulekit.Option("TECHNIQUE", "查看单条技术详情如 BB10.001；设置后优先于其它过滤条件", false, ""),
+		},
 	}
 }
 

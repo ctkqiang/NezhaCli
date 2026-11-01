@@ -51,14 +51,17 @@ func (m *Module) Meta() model.Meta {
 		Aliases:  []string{"sys", "env"},
 		Category: modulekit.CategorySystem,
 		Summary:  "本机环境、网络接口与出站连通性",
-		Description: "汇总主机名、系统、架构、UID、Root 状态、发行版与内核版本，\n" +
-			"枚举网络接口并执行 TCP 出站连通性探测。\n" +
-			"全部通过标准库与只读文件完成，不调用 uname、ip 等外部命令。",
+		Description: "汇总主机名、系统、架构、Root 状态、内核与网络接口等本机环境信息。\n" +
+			"适用于确认运行环境、判断权限边界与评估出站连通性。\n" +
+			"全部通过标准库与只读文件完成，不调用 uname、ip 等外部命令；\n" +
+			"默认对 1.1.1.1:443 与 8.8.8.8:53 执行 TCP 连通性探测。",
+		Usage:  "use sysinfo\nset TARGETS 1.1.1.1:443,8.8.8.8:53\nrun",
 		Author: modulekit.Author,
 		Options: []model.Option{
-			modulekit.Option("TARGETS", "出站连通性探测目标，host:port 逗号分隔", false, DefaultTargets),
-			modulekit.Option("TIMEOUT", "单个目标连接超时", false, "3s"),
+			modulekit.Option("TARGETS", "出站连通性探测目标；host:port 逗号分隔；默认公共 DNS 地址。", false, DefaultTargets),
+			modulekit.Option("TIMEOUT", "单个目标的连接超时；支持 3s 等 Go 时长格式。", false, "3s"),
 		},
+		References: []string{"https://github.com/ctkqiang/NezhaCli", "https://docs.kernel.org/"},
 	}
 }
 

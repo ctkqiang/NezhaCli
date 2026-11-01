@@ -52,18 +52,24 @@ func (m *Module) Meta() model.Meta {
 		Aliases:  []string{"curl", "request"},
 		Category: modulekit.CategoryWeb,
 		Summary:  "原始 HTTP 请求构造与回显",
-		Description: "构造任意方法与请求头的单次 HTTP 请求并回显状态、响应头与响应体，\n" +
-			"用于验证绕过、接口调试与 WAF 行为观察；HEADERS 用分号分隔 k:v，\n" +
-			"BODY 为内联文本，BODYFILE 为请求体文件。",
+		Description: "构造任意方法与请求头的单次 HTTP 请求，回显状态行、响应头与响应体。\n" +
+			"适用于验证绕过效果、接口调试与观察 WAF 拦截行为等战场排障场景。\n" +
+			"纯 Go 实现、无外部依赖；响应体读取上限 1MB、预览上限 2048 字符；\n" +
+			"HEADERS 用分号分隔 k:v 对，BODY 为内联文本，BODYFILE 提供请求体文件且优先于 BODY。",
+		Usage:  "use http\nset URL https://example.com/api\nset METHOD POST\nset HEADERS Content-Type:application/json;X-Test:1\nset BODY {\"a\":1}\nrun",
 		Author: modulekit.Author,
 		Options: []model.Option{
-			modulekit.Option("URL", "目标 URL", true, ""),
-			modulekit.Option("METHOD", "HTTP 方法", false, "GET"),
-			modulekit.Option("HEADERS", "附加请求头，k:v 分号分隔", false, ""),
-			modulekit.Option("BODY", "内联请求体", false, ""),
-			modulekit.Option("BODYFILE", "请求体文件路径，优先于 BODY", false, ""),
-			modulekit.Option("TIMEOUT", "单次请求超时", false, "10s"),
-			modulekit.Option("SHOW_BODY", "是否回显响应体（true/false）", false, "true"),
+			modulekit.Option("URL", "目标 URL，必须以 http:// 或 https:// 开头；不自动补全协议", true, ""),
+			modulekit.Option("METHOD", "HTTP 方法，自动转为大写；不校验合法性", false, "GET"),
+			modulekit.Option("HEADERS", "附加请求头，k:v 用分号分隔；无法解析的项被忽略并告警", false, ""),
+			modulekit.Option("BODY", "内联请求体文本；与 BODYFILE 同时设置时以文件优先", false, ""),
+			modulekit.Option("BODYFILE", "请求体文件路径；文件打不开直接报错；优先于 BODY", false, ""),
+			modulekit.Option("TIMEOUT", "单次请求超时；格式如 10s；超时直接报错", false, "10s"),
+			modulekit.Option("SHOW_BODY", "是否回显响应体，支持 true/false；关闭可减少输出", false, "true"),
+		},
+		References: []string{
+			"https://github.com/ctkqiang/NezhaCli",
+			"https://www.rfc-editor.org/rfc/rfc9110",
 		},
 	}
 }

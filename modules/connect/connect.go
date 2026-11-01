@@ -47,18 +47,21 @@ func (m *Module) Meta() model.Meta {
 		Aliases:  []string{"tcp", "nc", "socket"},
 		Category: modulekit.CategoryRecon,
 		Summary:  "一次性 TCP 原始交互",
-		Description: "连接目标端口，可选发送文本或 hex 字节，读取并回显响应。\n" +
-			"用于验证服务可达性、手工探测协议头与读取欢迎横幅，\n" +
-			"替代需要额外安装的 nc；不进入交互模式，单次往返即退出。",
+		Description: "建立一次性 TCP 连接，可选发送文本或 hex 数据并回显响应。\n" +
+			"适用于验证服务可达性、手工探测协议头与读取欢迎横幅。\n" +
+			"纯 Go 实现无外部依赖，可替代需要额外安装的 nc；\n" +
+			"不进入交互模式，单次往返即退出，响应渲染为 hex 与文本双栏预览。",
+		Usage:  "use connect\nset HOST 10.0.0.5\nset PORT 80\nset SEND GET / HTTP/1.0\nrun",
 		Author: modulekit.Author,
 		Options: []model.Option{
-			modulekit.Option("HOST", "目标主机或 IP", true, ""),
-			modulekit.Option("PORT", "目标端口", true, ""),
-			modulekit.Option("SEND", "待发送内容；HEX=true 时按 hex 字节解析", false, ""),
-			modulekit.Option("HEX", "SEND 是否按 hex 解析（true/false）", false, "false"),
-			modulekit.Option("TIMEOUT", "连接与读取总超时", false, "5s"),
-			modulekit.Option("WAIT", "发送后的额外读取等待", false, "500ms"),
+			modulekit.Option("HOST", "目标主机名或 IP；必填；无法解析或不可达时报错。", true, ""),
+			modulekit.Option("PORT", "目标端口；取值 1-65535；越界或非数字直接报错。", true, ""),
+			modulekit.Option("SEND", "待发送的字节内容；HEX=true 时按 hex 解析并忽略空格。", false, ""),
+			modulekit.Option("HEX", "SEND 是否按 hex 解析；取值 true/false；默认按文本发送。", false, "false"),
+			modulekit.Option("TIMEOUT", "连接与读取总超时；支持 5s 等 Go 时长格式。", false, "5s"),
+			modulekit.Option("WAIT", "发送后额外读取等待；支持 500ms 等 Go 时长格式。", false, "500ms"),
 		},
+		References: []string{"https://github.com/ctkqiang/NezhaCli", "https://pkg.go.dev/net"},
 	}
 }
 

@@ -99,15 +99,22 @@ func (m *Module) Meta() model.Meta {
 		Aliases:  []string{"dirb", "dirsearch", "web_paths"},
 		Category: modulekit.CategoryWeb,
 		Summary:  "Web 目录、备份与配置泄露探测",
-		Description: "使用内置字典并发请求常见管理后台、版本库、备份文件与环境配置路径。\n" +
-			"不跟随重定向，只保留指定状态码，并限制单响应读取 4KB。\n" +
-			"字典覆盖 admin、.git、.env、备份压缩包、Swagger、Actuator 等高频暴露面。",
+		Description: "使用内置高价值路径字典并发探测管理后台、版本库、备份文件与环境配置泄露路径。\n" +
+			"适用于 web 模块确认目标存活后的敏感路径摸底，输出状态码、长度与跳转目标。\n" +
+			"纯 Go 实现、无外部依赖；不跟随重定向、单响应只读 4KB，仅报告命中状态码的路径，\n" +
+			"并发线程自动钳制在 4-64；字典覆盖 admin、.git、.env、备份压缩包、Swagger、Actuator 等高频暴露面。",
+		Usage:  "use webdir\nset URL https://example.com\nset CODES 200,204,301,302\nset THREADS 32\nrun",
 		Author: modulekit.Author,
 		Options: []model.Option{
-			modulekit.Option("URL", "目标站点 URL，可省略 http://", true, ""),
-			modulekit.Option("CODES", "视为命中的 HTTP 状态码，逗号分隔", false, DefaultCodes),
-			modulekit.Option("THREADS", "并发请求数", false, "24"),
-			modulekit.Option("TIMEOUT", "单次请求超时", false, "5s"),
+			modulekit.Option("URL", "目标站点 URL，可省略 http:// 前缀；路径自动补齐末尾斜杠", true, ""),
+			modulekit.Option("CODES", "视为命中的状态码，逗号分隔且范围 100-599；非法值直接报错", false, DefaultCodes),
+			modulekit.Option("THREADS", "并发请求数；自动钳制在 4-64 之间；过高易触发封禁", false, "24"),
+			modulekit.Option("TIMEOUT", "单次请求超时；格式如 5s；过短容易漏报", false, "5s"),
+		},
+		References: []string{
+			"https://github.com/ctkqiang/NezhaCli",
+			"https://owasp.org/www-project-top-ten/",
+			"https://gitlab.com/kalilinux/packages/webshells",
 		},
 	}
 }

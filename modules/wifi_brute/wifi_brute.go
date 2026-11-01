@@ -55,20 +55,31 @@ func (m *Module) Meta() model.Meta {
 		Aliases:  []string{"wbrute", "assoc"},
 		Category: modulekit.CategoryWireless,
 		Summary:  "ESP 协处理器在线 WiFi 密码字典尝试",
-		Description: "读取密码字典，逐条调用 ESP 固件关联目标 SSID；命中后立即停止。\n" +
-			"固件每次关联最长阻塞约 12 秒，因此该模块适合小规模、受控的授权测试。\n" +
-			"禁止对未授权网络使用；高频尝试可能触发 AP 的锁定与告警。",
+		Description: "读取密码字典，逐条调用 ESP 固件关联目标 SSID，命中后立即停止。\n" +
+			"适用于对已获书面授权的目标做弱口令验证与小规模字典测试。\n" +
+			"影响等级高：会尝试关联目标 AP；固件每次关联最长阻塞约 12 秒，\n" +
+			"高频尝试可能触发 AP 的锁定与告警，禁止对未授权网络使用。\n" +
+			"字典可由 crunch 生成，目标 SSID 与信道可先用 wifi_scan 确认。",
+		Usage: "use wifi_brute\n" +
+			"set SSID NezhaLab\n" +
+			"set WORDLIST /sdcard/dict.txt\n" +
+			"set DELAY 500ms\n" +
+			"run",
 		Author: modulekit.Author,
 		Impact: "高（会尝试关联目标 AP）",
 		Options: []model.Option{
-			modulekit.Option("PORT", "串口设备；留空自动探测", false, ""),
-			modulekit.Option("SSID", "目标 SSID", true, ""),
-			modulekit.Option("WORDLIST", "密码字典路径，每行一个密码", true, ""),
-			modulekit.Option("DELAY", "两次尝试之间的额外延迟", false, "200ms"),
-			modulekit.Option("MAX", "最大尝试次数；0 表示不限制", false, "0"),
-			modulekit.Option("STOP_ON_SUCCESS", "命中后是否立即停止", false, "true"),
+			modulekit.Option("PORT", "串口设备路径；留空时自动探测", false, ""),
+			modulekit.Option("SSID", "目标 SSID；长度 1-32 字节，超限报错", true, ""),
+			modulekit.Option("WORDLIST", "密码字典路径；每行一个密码，超 63 字节自动跳过", true, ""),
+			modulekit.Option("DELAY", "两次尝试之间的额外延迟；不能为负数", false, "200ms"),
+			modulekit.Option("MAX", "最大尝试次数；0 表示不限制，负数报错", false, "0"),
+			modulekit.Option("STOP_ON_SUCCESS", "命中后是否立即停止；true 或 false", false, "true"),
 		},
-		References: []string{"https://github.com/ctkqiang/wifisec"},
+		References: []string{
+			"https://github.com/ctkqiang/NezhaCli",
+			"https://docs.espressif.com/projects/esp-at/en/latest/",
+			"https://en.wikipedia.org/wiki/IEEE_802.11",
+		},
 	}
 }
 

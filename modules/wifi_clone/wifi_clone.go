@@ -52,20 +52,30 @@ func (m *Module) Meta() model.Meta {
 		Category: modulekit.CategoryWireless,
 		Summary:  "ESP 协处理器克隆 AP 与在线设备监控",
 		Description: "让 ESP 固件以相同 SSID 与密码开启 SoftAP，并保留 STA 接口用于注入。\n" +
-			"支持开启、关闭、查询在线设备以及定时监控；监控会差分出新接入与离开的 MAC。\n" +
-			"这是高影响操作，仅可用于已获得书面授权的红队评估与无线健壮性测试。",
+			"支持开启、关闭、查询在线设备以及定时监控；监控每 3 秒轮询并差分出新接入与离开的 MAC。\n" +
+			"影响等级高：会创建伪造接入点，仅限已获得书面授权的红队评估与无线健壮性测试。\n" +
+			"与 wifi_deauth 共用协处理器链路，可组合开展无线侧攻击面验证。",
+		Usage: "use wifi_clone\n" +
+			"set ACTION up\n" +
+			"set SSID NezhaLab\n" +
+			"set PASSWORD Nezha@2024\n" +
+			"run",
 		Author: modulekit.Author,
 		Impact: "高（会创建伪造接入点）",
 		Options: []model.Option{
-			modulekit.Option("PORT", "串口设备；留空自动探测", false, ""),
-			modulekit.Option("ACTION", "动作：up / down / status / watch", false, "status"),
-			modulekit.Option("SSID", "克隆 SSID；ACTION=up/watch 时必填", false, ""),
-			modulekit.Option("PASSWORD", "克隆密码；留空表示开放网络", false, ""),
-			modulekit.Option("CHANNEL", "克隆 AP 信道", false, "1"),
-			modulekit.Option("WATCH", "监控时长，例如 60s；0 表示直到 Ctrl+C", false, "0s"),
-			modulekit.Option("DOWN_ON_EXIT", "监控结束后是否关闭克隆 AP", false, "true"),
+			modulekit.Option("PORT", "串口设备路径；留空时自动探测", false, ""),
+			modulekit.Option("ACTION", "动作；取值 up/down/status/watch，其余报错", false, "status"),
+			modulekit.Option("SSID", "克隆 SSID；ACTION=up/watch 时必填，长度 1-32 字节", false, ""),
+			modulekit.Option("PASSWORD", "克隆密码；留空表示开放网络，最长 63 字节", false, ""),
+			modulekit.Option("CHANNEL", "克隆 AP 信道；范围 1-196，超出报错", false, "1"),
+			modulekit.Option("WATCH", "监控时长如 60s；0 表示直到 Ctrl+C", false, "0s"),
+			modulekit.Option("DOWN_ON_EXIT", "监控结束后是否关闭克隆 AP；true 或 false", false, "true"),
 		},
-		References: []string{"https://github.com/ctkqiang/wifisec"},
+		References: []string{
+			"https://github.com/ctkqiang/NezhaCli",
+			"https://docs.espressif.com/projects/esp-at/en/latest/",
+			"https://en.wikipedia.org/wiki/IEEE_802.11",
+		},
 	}
 }
 

@@ -60,12 +60,22 @@ func (m *Module) Meta() model.Meta {
 		Category: modulekit.CategoryWireless,
 		Summary:  "本机无线接口状态与周边接入点",
 		Description: "列出本机无线接口、链路状态与 /proc/net/wireless 中的信号质量。\n" +
-			"设置 ESP=true 或指定 PORT 后，会通过 ESP 协处理器实际扫描周边接入点。\n" +
-			"非 Root 的 Android 会限制直接读取无线状态；此时请使用 ESP 路径。",
+			"适用于快速查看宿主机无线栈状态，或借助 ESP 查看周边接入点。\n" +
+			"纯 Go 读取系统接口，无 Root 要求；非 Root 的 Android 会限制读取无线状态，\n" +
+			"此时请设置 ESP=true 走协处理器扫描路径。\n" +
+			"与 esp 模块共享串口链路，可与 wifi_scan 交叉验证扫描结果。",
+		Usage: "use wifi_list\n" +
+			"set ESP true\n" +
+			"run",
 		Author: modulekit.Author,
+		References: []string{
+			"https://github.com/ctkqiang/NezhaCli",
+			"https://docs.espressif.com/projects/esp-at/en/latest/",
+			"https://en.wikipedia.org/wiki/IEEE_802.11",
+		},
 		Options: []model.Option{
-			modulekit.Option("ESP", "是否通过 ESP 协处理器执行扫描", false, "false"),
-			modulekit.Option("PORT", "串口设备；留空自动探测", false, ""),
+			modulekit.Option("ESP", "是否通过 ESP 协处理器执行扫描；true 或 false", false, "false"),
+			modulekit.Option("PORT", "串口设备路径；留空自动探测，非空也会触发 ESP 扫描", false, ""),
 		},
 	}
 }

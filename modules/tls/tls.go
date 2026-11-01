@@ -48,12 +48,20 @@ func (m *Module) Meta() model.Meta {
 		Category: modulekit.CategoryWeb,
 		Summary:  "TLS 证书、有效期与信任链检查",
 		Description: "与目标主机建立 TLS 连接，提取协议版本、密码套件、主题、签发者、有效期与 SAN。\n" +
-			"握手阶段关闭默认链校验，因此可检查自签名与过期证书，并单独报告 Trusted 状态。",
+			"适用于证书到期预警、自签名证书排查与 CDN/源站证书一致性核对。\n" +
+			"握手阶段关闭默认信任链校验，因此可检查自签名与过期证书，并单独报告 Trusted 状态；\n" +
+			"纯 Go 实现、无外部依赖，全程被动握手不发送额外载荷。",
+		Usage:  "use tls\nset TARGET https://example.com\nset PORT 443\nrun",
 		Author: modulekit.Author,
 		Options: []model.Option{
-			modulekit.Option("TARGET", "目标主机或 https:// URL", true, ""),
-			modulekit.Option("PORT", "TLS 端口；URL 自带端口时优先使用 URL", false, "443"),
-			modulekit.Option("TIMEOUT", "连接与握手超时", false, "10s"),
+			modulekit.Option("TARGET", "目标主机名或 https:// URL；不含协议时按主机名解析", true, ""),
+			modulekit.Option("PORT", "TLS 端口，范围 1-65535；URL 自带端口时优先于本参数", false, "443"),
+			modulekit.Option("TIMEOUT", "连接与握手超时；格式如 10s；过短可能导致握手失败", false, "10s"),
+		},
+		References: []string{
+			"https://github.com/ctkqiang/NezhaCli",
+			"https://www.rfc-editor.org/rfc/rfc8446",
+			"https://pkg.go.dev/net",
 		},
 	}
 }

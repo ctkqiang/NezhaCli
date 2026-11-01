@@ -109,16 +109,21 @@ func (m *Module) Meta() model.Meta {
 		Aliases:  []string{"cves", "exploits", "poc"},
 		Category: modulekit.CategoryWeb,
 		Summary:  "CVE PoC/Exploit 库目录",
-		Description: "移植自作者的 CVE-Exploits 仓库：内置目录列出仓库中的 PoC/Exploit，\n" +
-			"标明目标、语言与内置模块映射。Go 实现的三个 PoC 已原生集成到本控制台：\n" +
-			"cve_2025_14847（MongoBleed）、cve_2025_4334（WordPress 提权）、\n" +
-			"cve_2025_66478（React2Shell 检测）。其余条目保留在仓库目录中，按需查阅。",
+		Description: "列出 CVE-Exploits 仓库中的 PoC/Exploit 目录，标明编号、CVSS、语言与目标。\n" +
+			"适用于检索漏洞库、查看单条详情，并定位本控制台已内置的原生检测模块。\n" +
+			"纯 Go 实现、无外部依赖；只输出静态目录数据，不发起任何网络请求。\n" +
+			"三个 Go 实现的 PoC 已原生集成：cve_2025_14847（MongoBleed）、cve_2025_4334（WordPress 提权）、\n" +
+			"cve_2025_66478（React2Shell 检测），其余条目保留在仓库目录中按需查阅。",
+		Usage:  "use cve\nset ID CVE-2025-14847\nrun",
 		Author: modulekit.Author,
 		Options: []model.Option{
-			modulekit.Option("QUERY", "按编号或目标过滤，例如 mongo 或 2025", false, ""),
-			modulekit.Option("ID", "查看单条详情，例如 CVE-2025-14847", false, ""),
+			modulekit.Option("QUERY", "按编号或目标过滤，大小写不敏感；留空显示全部条目", false, ""),
+			modulekit.Option("ID", "查看单条详情，例如 CVE-2025-14847；不存在时报错", false, ""),
 		},
-		References: []string{"https://github.com/ctkqiang/CVE-Exploits"},
+		References: []string{
+			"https://github.com/ctkqiang/NezhaCli",
+			"https://attack.mitre.org/",
+		},
 	}
 }
 

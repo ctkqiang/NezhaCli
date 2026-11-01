@@ -45,15 +45,26 @@ func (m *Module) Meta() model.Meta {
 		Aliases:  []string{"wscan", "ap_scan"},
 		Category: modulekit.CategoryWireless,
 		Summary:  "ESP 协处理器扫描周边接入点",
-		Description: "通过 ESP8266/ESP32 协处理器执行主动扫描，返回 SSID、BSSID、信道与 RSSI。\n" +
-			"宿主机只访问串口，不要求 Root、raw socket 或 monitor 模式；\n" +
-			"ESP32-C5 等双频固件可同时返回 5GHz 结果。",
+		Description: "通过 ESP8266/ESP32 协处理器主动扫描周边接入点，返回 SSID、BSSID、信道与 RSSI。\n" +
+			"适用于授权评估前定位目标 AP 的信道与信号，为去认证与关联测试做准备。\n" +
+			"宿主机只访问串口，不需要 Root、raw socket 或 monitor 模式；\n" +
+			"ESP32-C5 等双频固件可同时返回 5GHz 结果。\n" +
+			"扫描得到的 BSSID 与信道可直接交给 wifi_deauth 使用。",
+		Usage: "use wifi_scan\n" +
+			"set MIN_RSSI -70\n" +
+			"set SORT rssi\n" +
+			"run",
 		Author: modulekit.Author,
+		References: []string{
+			"https://github.com/ctkqiang/NezhaCli",
+			"https://docs.espressif.com/projects/esp-at/en/latest/",
+			"https://en.wikipedia.org/wiki/IEEE_802.11",
+		},
 		Options: []model.Option{
-			modulekit.Option("PORT", "串口设备；留空自动探测", false, ""),
-			modulekit.Option("SORT", "排序方式：rssi / channel / ssid", false, "rssi"),
-			modulekit.Option("MIN_RSSI", "最低 RSSI，低于该值的 AP 会被过滤", false, "-100"),
-			modulekit.Option("HIDDEN", "是否显示隐藏 SSID", false, "true"),
+			modulekit.Option("PORT", "串口设备路径；留空时自动探测", false, ""),
+			modulekit.Option("SORT", "排序方式；取值 rssi/channel/ssid，其余按 rssi 降序", false, "rssi"),
+			modulekit.Option("MIN_RSSI", "最低信号阈值；低于该值的接入点被过滤，通常为负数", false, "-100"),
+			modulekit.Option("HIDDEN", "是否显示隐藏 SSID；false 时过滤无名称的接入点", false, "true"),
 		},
 	}
 }

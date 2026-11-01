@@ -74,16 +74,19 @@ func (m *Module) Meta() model.Meta {
 		Aliases:  []string{"banner", "fingerprint"},
 		Category: modulekit.CategoryRecon,
 		Summary:  "明文服务横幅与协议指纹识别",
-		Description: "对指定主机与端口并发建立 TCP 连接并读取首段数据，\n" +
-			"按 SSH、HTTP、FTP、SMTP、MySQL、Redis 等特征归类。\n" +
-			"仅读取服务主动返回或最小 HTTP 探针触发的明文横幅，不发送漏洞载荷。",
+		Description: "对指定主机与端口并发建立 TCP 连接并读取首段数据，识别服务类型。\n" +
+			"适用于 portscan 发现开放端口后确认服务归属，或手工验证可疑横幅。\n" +
+			"按 SSH、HTTP、FTP、SMTP、MySQL、Redis 等特征归类，纯 Go 实现无外部依赖；\n" +
+			"只读取主动返回或最小 HTTP 探针触发的明文横幅，不发送任何漏洞载荷。",
+		Usage:  "use service\nset TARGET example.com\nset PORTS 80,443,3306\nrun",
 		Author: modulekit.Author,
 		Options: []model.Option{
-			modulekit.Option("TARGET", "目标主机、域名或 CIDR，多个用逗号分隔", true, ""),
-			modulekit.Option("PORTS", "待识别端口", false, DefaultPorts),
-			modulekit.Option("TIMEOUT", "单次连接与横幅超时", false, "600ms"),
-			modulekit.Option("WORKERS", "并发工作协程数", false, "48"),
+			modulekit.Option("TARGET", "目标主机、域名或 CIDR；多个用逗号分隔；展开总量上限 256。", true, ""),
+			modulekit.Option("PORTS", "待识别端口；支持逗号与区间写法；默认覆盖常见服务端口。", false, DefaultPorts),
+			modulekit.Option("TIMEOUT", "单次连接与横幅读取超时；支持 Go 时长格式；影响识别成功率。", false, "600ms"),
+			modulekit.Option("WORKERS", "并发拨号协程数；自动限制在 8 至 128 之间；过大被截断。", false, "48"),
 		},
+		References: []string{"https://github.com/ctkqiang/NezhaCli", "https://attack.mitre.org/"},
 	}
 }
 

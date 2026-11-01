@@ -43,13 +43,22 @@ func (m *Module) Meta() model.Meta {
 		Aliases:  []string{"bluetooth", "hci"},
 		Category: modulekit.CategoryBluetooth,
 		Summary:  "本机蓝牙适配器被动枚举",
-		Description: "读取 /sys/class/bluetooth 下的 HCI 适配器名称、地址与 sysfs 路径。\n" +
-			"只做被动枚举，不发起扫描、配对或连接。\n" +
-			"Android 的非 Root Termux 通常无法访问蓝牙 sysfs，此时会给出明确说明；\n" +
-			"这属于系统权限边界，不是模块故障。",
+		Description: "读取 sysfs 被动枚举本机 HCI 蓝牙适配器的名称、地址与路径。\n" +
+			"适用于授权评估前确认主机是否存在可用的蓝牙攻击面。\n" +
+			"只做被动枚举，不发起扫描、配对或连接；\n" +
+			"非 Root 的 Android/Termux 通常无法访问蓝牙 sysfs，这属于系统权限边界而非模块故障。\n" +
+			"枚举结果可作为后续蓝牙评估工具选型与攻击面分析的依据。",
+		Usage: "use bt\n" +
+			"set SYSFS /sys/class/bluetooth\n" +
+			"run",
 		Author: modulekit.Author,
+		References: []string{
+			"https://github.com/ctkqiang/NezhaCli",
+			"https://docs.kernel.org/",
+			"https://github.com/termux/termux-app",
+		},
 		Options: []model.Option{
-			modulekit.Option("SYSFS", "蓝牙 sysfs 根目录", false, "/sys/class/bluetooth"),
+			modulekit.Option("SYSFS", "蓝牙 sysfs 根目录；默认 /sys/class/bluetooth，只做只读枚举", false, "/sys/class/bluetooth"),
 		},
 	}
 }

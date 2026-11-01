@@ -44,11 +44,19 @@ func (m *Module) Meta() model.Meta {
 		Aliases:  []string{"lookup", "resolve"},
 		Category: modulekit.CategoryRecon,
 		Summary:  "域名 DNS 记录与解析结果",
-		Description: "使用 Go 标准库解析器查询目标域名的 A、AAAA、CNAME、MX、NS 与 TXT 记录。\n" +
-			"不调用 dig、nslookup 等外部命令，适合在最小化 Termux 环境中运行。",
+		Description: "查询目标域名的 A、AAAA、CNAME、MX、NS 与 TXT 记录并输出解析结果。\n" +
+			"适用于资产关联分析、CDN 判别、MX 邮箱定位与解析故障排障。\n" +
+			"纯 Go 标准库解析器实现，不调用 dig、nslookup 等外部命令，\n" +
+			"适合在最小化 Termux 环境中运行；输入可自动去除协议与路径前缀。",
+		Usage:  "use dns\nset DOMAIN example.com\nrun",
 		Author: modulekit.Author,
 		Options: []model.Option{
-			modulekit.Option("DOMAIN", "目标域名，例如 example.com", true, ""),
+			modulekit.Option("DOMAIN", "目标域名；可含 http:// 前缀；会自动去除协议与路径。", true, ""),
+		},
+		References: []string{
+			"https://github.com/ctkqiang/NezhaCli",
+			"https://www.rfc-editor.org/rfc/rfc1034",
+			"https://www.rfc-editor.org/rfc/rfc1035",
 		},
 	}
 }

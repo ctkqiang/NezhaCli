@@ -48,14 +48,26 @@ func (m *Module) Meta() model.Meta {
 		Aliases:  []string{"checksum", "digest"},
 		Category: modulekit.CategorySystem,
 		Summary:  "文件与数据完整性校验",
-		Description: "计算文件或内联文本的 MD5/SHA1/SHA256 摘要，\n" +
-			"可选与期望摘要比对，用于验证工具包与载荷在传输后未被篡改。\n" +
-			"INPUT 指向存在的文件时按文件读取，否则按内联文本处理。",
+		Description: "计算文件或内联文本的 MD5/SHA1/SHA256 摘要，并可选与期望值比对。\n" +
+			"适用于验证工具包、载荷与配置文件在传输或存储后未被篡改。\n" +
+			"纯 Go 标准库实现，无外部依赖；INPUT 指向存在的文件时按文件读取，\n" +
+			"否则按内联文本处理，EXPECT 留空时只输出计算值。\n" +
+			"可与 crunch 配合：为生成的字典文件计算摘要做完整性存证。",
+		Usage: "use hash\n" +
+			"set INPUT /sdcard/payloads/agent.bin\n" +
+			"set ALGO md5\n" +
+			"set EXPECT d41d8cd98f00b204e9800998ecf8427e\n" +
+			"run",
 		Author: modulekit.Author,
+		References: []string{
+			"https://github.com/ctkqiang/NezhaCli",
+			"https://www.rfc-editor.org/rfc/rfc1321",
+			"https://www.rfc-editor.org/rfc/rfc6234",
+		},
 		Options: []model.Option{
-			modulekit.Option("INPUT", "文件路径或内联文本", true, ""),
-			modulekit.Option("ALGO", "摘要算法：md5 / sha1 / sha256", false, "sha256"),
-			modulekit.Option("EXPECT", "期望摘要；留空只输出计算值", false, ""),
+			modulekit.Option("INPUT", "文件路径或内联文本；指向存在的文件时按文件读取，否则按文本处理", true, ""),
+			modulekit.Option("ALGO", "摘要算法；取值 md5/sha1/sha256，大小写不敏感", false, "sha256"),
+			modulekit.Option("EXPECT", "期望摘要；留空只输出计算值，非空则比对且忽略大小写", false, ""),
 		},
 	}
 }

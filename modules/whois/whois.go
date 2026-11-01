@@ -81,16 +81,19 @@ func (m *Module) Meta() model.Meta {
 		Aliases:  []string{"domain"},
 		Category: modulekit.CategoryRecon,
 		Summary:  "域名或 IP 的 WHOIS 注册信息",
-		Description: "直接通过 TCP 43 端口查询 WHOIS，不依赖系统 whois 命令。\n" +
-			"未指定 SERVER 时先向 whois.iana.org 查询权威服务器，再获取完整注册信息，\n" +
-			"并归一化注册商、创建时间、到期时间、名称服务器与域名状态。",
+		Description: "通过 TCP 43 端口查询域名或 IP 的 WHOIS 注册信息并归一化展示。\n" +
+			"适用于资产归属核实、注册商与到期时间调查、钓鱼域名溯源。\n" +
+			"不依赖系统 whois 命令，纯 Go 实现；未指定 SERVER 时自动向 whois.iana.org\n" +
+			"发现权威服务器后再查询，响应读取上限 1 MiB 防止内存失控。",
+		Usage:  "use whois\nset TARGET example.com\nset RAW true\nrun",
 		Author: modulekit.Author,
 		Options: []model.Option{
-			modulekit.Option("TARGET", "域名或 IP，例如 example.com", true, ""),
-			modulekit.Option("SERVER", "自定义 WHOIS 服务器；留空自动发现", false, ""),
-			modulekit.Option("TIMEOUT", "连接与读取总超时", false, defaultTimeout.String()),
-			modulekit.Option("RAW", "是否附加原始 WHOIS 文本", false, "false"),
+			modulekit.Option("TARGET", "待查询的域名或 IP；自动清理协议、路径与末尾点。", true, ""),
+			modulekit.Option("SERVER", "自定义 WHOIS 服务器；留空时自动向 IANA 发现权威服务器。", false, ""),
+			modulekit.Option("TIMEOUT", "连接与读取总超时；支持 15s 等 Go 时长格式。", false, defaultTimeout.String()),
+			modulekit.Option("RAW", "是否附加原始响应文本；取值 true/false；展示上限 8000 字符。", false, "false"),
 		},
+		References: []string{"https://github.com/ctkqiang/NezhaCli", "https://www.rfc-editor.org/rfc/rfc3912"},
 	}
 }
 

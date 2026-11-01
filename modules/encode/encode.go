@@ -46,13 +46,25 @@ func (m *Module) Meta() model.Meta {
 		Aliases:  []string{"b64", "base64"},
 		Category: modulekit.CategorySystem,
 		Summary:  "载荷 base64 / hex / URL 编解码",
-		Description: "对载荷文本执行 base64、hex 或 URL 编码与解码，\n" +
-			"覆盖战场常见的数据转换需求；hex 解码输出原始字节转义预览。",
+		Description: "对载荷文本执行 base64、hex 或 URL 的编码与解码。\n" +
+			"适用于命令混淆、数据落盘转储与 Web 参数化等常见转换需求。\n" +
+			"纯 Go 标准库实现，无外部依赖；hex 解码结果附带原始字节数预览，\n" +
+			"输入非法时解码失败并返回错误。\n" +
+			"可与 payloads 配合：对挑选出的载荷做二次编码后投递。",
+		Usage: "use encode\n" +
+			"set ACTION encode\n" +
+			"set ALGO base64\n" +
+			"set VALUE \"id; uname -a\"\n" +
+			"run",
 		Author: modulekit.Author,
+		References: []string{
+			"https://github.com/ctkqiang/NezhaCli",
+			"https://www.rfc-editor.org/rfc/rfc4648",
+		},
 		Options: []model.Option{
-			modulekit.Option("ACTION", "encode 或 decode", false, "encode"),
-			modulekit.Option("ALGO", "base64 / hex / url", false, "base64"),
-			modulekit.Option("VALUE", "待处理文本", true, ""),
+			modulekit.Option("ACTION", "处理动作；取值 encode 或 decode，其余报错", false, "encode"),
+			modulekit.Option("ALGO", "编解码算法；取值 base64/hex/url，大小写不敏感", false, "base64"),
+			modulekit.Option("VALUE", "待处理文本；hex 解码输出附带原始字节数预览", true, ""),
 		},
 	}
 }

@@ -61,19 +61,25 @@ func (m *Module) Meta() model.Meta {
 		Aliases:  []string{"react2shell", "nextjs_rce"},
 		Category: modulekit.CategoryWeb,
 		Summary:  "Next.js React2Shell 漏洞检测",
-		Description: "移植自作者 CVE-Exploits 仓库的 React2Shell Go 复现工具（检测模式）：\n" +
-			"向目标发送构造的 RSC 反序列化负载，若响应为 500 且包含 digest 特征，\n" +
-			"判定目标存在 CVE-2025-66478。本模块只做检测与判定，不执行任意代码。\n" +
-			"检测负载会触发服务端反序列化异常，可能产生日志告警，必须已获书面授权。",
+		Description: "检测 Next.js App Router 是否存在 CVE-2025-66478（React2Shell）RSC 反序列化漏洞。\n" +
+			"适用于已获授权的 Next.js 站点验证，自动提取 Next-Action ID 并发送构造的 RSC 负载。\n" +
+			"纯 Go 实现、无外部依赖；按响应为 500 且包含 digest 特征判定存在漏洞，\n" +
+			"本模块只做检测与判定，不执行任意代码；检测负载会触发服务端反序列化异常，\n" +
+			"可能产生日志告警，必须已获书面授权。",
+		Usage:  "use cve_2025_66478\nset URL https://target.com\nset ACTION 8c5b5f1c9c7f4a0b3d5e6f7a8b9c0d1e2f3a4b5c\nrun",
 		Author: modulekit.Author,
 		Impact: "高（发送恶意 RSC 负载并触发服务端反序列化）",
 		Options: []model.Option{
-			modulekit.Option("URL", "目标 Next.js 站点 URL，例如 https://target.com", true, ""),
-			modulekit.Option("ACTION", "Next-Action ID；留空自动从页面提取", false, ""),
-			modulekit.Option("TIMEOUT", "单次请求超时", false, "10s"),
-			modulekit.Option("VERBOSE", "是否输出响应头与响应预览", false, "false"),
+			modulekit.Option("URL", "目标 Next.js 站点 URL，必须以 http:// 或 https:// 开头", true, ""),
+			modulekit.Option("ACTION", "Next-Action ID；留空自动从页面 action 属性提取，失败可手动指定", false, ""),
+			modulekit.Option("TIMEOUT", "单次请求超时；格式如 10s；超时直接报错", false, "10s"),
+			modulekit.Option("VERBOSE", "是否回显响应头与 300 字符预览；支持 true/false", false, "false"),
 		},
-		References: []string{"https://github.com/ctkqiang/CVE-Exploits/tree/main/CVE-2025-66478"},
+		References: []string{
+			"https://github.com/ctkqiang/NezhaCli",
+			"https://nvd.nist.gov/vuln/detail/CVE-2025-66478",
+			"https://nextjs.org/blog/cve-2025-66478",
+		},
 	}
 }
 

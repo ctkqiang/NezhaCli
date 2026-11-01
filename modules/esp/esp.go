@@ -43,13 +43,23 @@ func (m *Module) Meta() model.Meta {
 		Aliases:  []string{"wifi_esp", "serial"},
 		Category: modulekit.CategoryWireless,
 		Summary:  "ESP 协处理器握手、固件版本与射频能力",
-		Description: "打开 USB 串口，执行 DTR/RTS 复位时序并完成 PING/PONG 握手。\n" +
-			"输出固件协议版本、2.4/5GHz 能力与可选扫描结果，用于排错。\n" +
-			"这是所有 WiFi 注入模块的前置检查：握手失败时不要继续执行主动操作。",
+		Description: "打开 ESP8266/ESP32 串口，执行 DTR/RTS 复位时序并完成 PING/PONG 握手。\n" +
+			"适用于无线注入前的链路诊断：确认固件协议版本与射频能力。\n" +
+			"这是 wifi_scan/wifi_deauth/wifi_brute/wifi_clone 的前置检查，\n" +
+			"握手失败时不应继续任何主动操作。\n" +
+			"可选在握手后立即执行一次扫描，快速确认周边环境。",
+		Usage: "use esp\n" +
+			"set SCAN true\n" +
+			"run",
 		Author: modulekit.Author,
+		References: []string{
+			"https://github.com/ctkqiang/NezhaCli",
+			"https://docs.espressif.com/projects/esp-at/en/latest/",
+			"https://en.wikipedia.org/wiki/IEEE_802.11",
+		},
 		Options: []model.Option{
-			modulekit.Option("PORT", "串口设备；留空自动探测唯一 USB 串口", false, ""),
-			modulekit.Option("SCAN", "握手后是否执行一次扫描", false, "false"),
+			modulekit.Option("PORT", "串口设备路径；留空时自动探测唯一 USB 串口", false, ""),
+			modulekit.Option("SCAN", "握手后是否执行一次扫描；true 或 false", false, "false"),
 		},
 	}
 }

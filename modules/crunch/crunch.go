@@ -50,16 +50,28 @@ func (m *Module) Meta() model.Meta {
 		Aliases:  []string{"wordgen", "wordlist"},
 		Category: modulekit.CategorySystem,
 		Summary:  "口令字典流式生成",
-		Description: "按字符集与长度区间生成全排列口令字典，流式写入文件，\n" +
-			"内存占用与单条口令长度成正比，不受组合总数影响。\n" +
-			"LIMIT 为行数硬上限；生成中途可用 Ctrl+C 安全中止并保留已写入内容。",
+		Description: "按字符集与长度区间生成全排列口令字典，流式写入文件。\n" +
+			"适用于为 wifi_brute、口令评估等任务准备小规模受控字典。\n" +
+			"纯 Go 实现：内存占用只与单条口令长度成正比，不受组合总数影响；\n" +
+			"LIMIT 为行数硬上限，生成中途可用 Ctrl+C 安全中止并保留已写入内容。\n" +
+			"生成的字典文件可直接作为 wifi_brute 的 WORDLIST 输入。",
+		Usage: "use crunch\n" +
+			"set CHARSET abc123\n" +
+			"set OUTPUT /sdcard/dict.txt\n" +
+			"set MIN 6\n" +
+			"set MAX 8\n" +
+			"run",
 		Author: modulekit.Author,
+		References: []string{
+			"https://github.com/ctkqiang/NezhaCli",
+			"https://sourceforge.net/projects/crunch-wordlist/",
+		},
 		Options: []model.Option{
-			modulekit.Option("CHARSET", "候选字符集", true, ""),
-			modulekit.Option("MIN", "最短长度", false, "1"),
-			modulekit.Option("MAX", "最长长度", false, "4"),
-			modulekit.Option("OUTPUT", "输出文件路径", true, ""),
-			modulekit.Option("LIMIT", "生成行数上限；0 表示使用内置硬上限", false, "0"),
+			modulekit.Option("CHARSET", "候选字符集；每个字符参与全排列，不能为空", true, ""),
+			modulekit.Option("MIN", "最短口令长度；须 >= 1 且不大于 MAX", false, "1"),
+			modulekit.Option("MAX", "最长口令长度；须 >= MIN 且 <= 16", false, "4"),
+			modulekit.Option("OUTPUT", "输出文件路径；已存在的同名文件会被覆盖", true, ""),
+			modulekit.Option("LIMIT", "行数上限；0 或超出时使用内置硬上限 10000000", false, "0"),
 		},
 	}
 }

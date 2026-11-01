@@ -76,17 +76,22 @@ func (m *Module) Meta() model.Meta {
 		Aliases:  []string{"mongobleed", "mongodb"},
 		Category: modulekit.CategoryRecon,
 		Summary:  "MongoDB zlib 内存泄露检测（MongoBleed）",
-		Description: "移植自作者 CVE-Exploits 仓库的 CVE-2025-14847 PoC：\n" +
-			"通过畸形 OP_COMPRESSED 消息探测 MongoDB 是否返回未初始化堆内存，\n" +
-			"并结合 isMaster 握手提取的版本号判断是否落入受影响区间。\n" +
-			"该探测发生在认证之前，可能造成目标日志告警，必须已获书面授权。",
+		Description: "通过畸形 OP_COMPRESSED 消息探测 MongoDB 是否返回未初始化堆内存（MongoBleed）。\n" +
+			"适用于检测公网或内网暴露的 MongoDB 实例是否存在 CVE-2025-14847。\n" +
+			"纯 Go 实现、无外部依赖；先以 isMaster 握手提取版本号判断受影响区间，\n" +
+			"再按响应长度大于 1000 字节判定触发内存泄露。探测发生在认证之前，\n" +
+			"可能触发目标日志告警并泄露目标内存数据，必须已获书面授权。",
+		Usage:  "use cve_2025_14847\nset HOST 10.0.0.15\nset PORT 27017\nrun",
 		Author: modulekit.Author,
 		Impact: "高（发送恶意协议载荷并可能泄露目标内存数据）",
 		Options: []model.Option{
-			modulekit.Option("HOST", "MongoDB 主机或 IP", true, ""),
-			modulekit.Option("PORT", "MongoDB 端口", false, "27017"),
+			modulekit.Option("HOST", "MongoDB 主机名或 IP；必填，留空直接报错", true, ""),
+			modulekit.Option("PORT", "MongoDB 端口，范围 1-65535；越界直接报错", false, "27017"),
 		},
-		References: []string{"https://github.com/ctkqiang/CVE-Exploits/tree/main/CVE-2025-14847"},
+		References: []string{
+			"https://github.com/ctkqiang/NezhaCli",
+			"https://nvd.nist.gov/vuln/detail/CVE-2025-14847",
+		},
 	}
 }
 

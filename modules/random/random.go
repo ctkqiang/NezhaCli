@@ -58,14 +58,24 @@ func (m *Module) Meta() model.Meta {
 		Aliases:  []string{"gen", "token"},
 		Category: modulekit.CategorySystem,
 		Summary:  "随机口令与令牌生成",
-		Description: "使用 crypto/rand 生成不可预测的口令、令牌与一次性标识，\n" +
-			"字符集可选 upper/lower/digits/symbols/hex/all，长度与数量可调。\n" +
-			"适合临时口令、Cookie 标识与 C2 通道随机化。",
+		Description: "使用 crypto/rand 生成不可预测的口令、令牌与一次性标识。\n" +
+			"适用于临时口令、Cookie 标识、API 令牌与 C2 通道随机化等场景。\n" +
+			"纯 Go 实现并在本机完成，无网络依赖；字符集与数量可调，\n" +
+			"拒绝采样避免取模偏差，保证每个字符均匀分布。\n" +
+			"可与 crunch 配合：先生成随机口令再扩展为变形字典。",
+		Usage: "use random\n" +
+			"set LENGTH 24\n" +
+			"set CHARSET all\n" +
+			"run",
 		Author: modulekit.Author,
+		References: []string{
+			"https://github.com/ctkqiang/NezhaCli",
+			"https://www.rfc-editor.org/rfc/rfc8446",
+		},
 		Options: []model.Option{
-			modulekit.Option("LENGTH", "单个字符串长度", false, "16"),
-			modulekit.Option("CHARSET", "upper/lower/digits/symbols/hex/all", false, "all"),
-			modulekit.Option("COUNT", "生成数量", false, "1"),
+			modulekit.Option("LENGTH", "单个字符串长度；范围 1-4096，超出报错", false, "16"),
+			modulekit.Option("CHARSET", "字符集；取值 upper/lower/digits/symbols/hex/all", false, "all"),
+			modulekit.Option("COUNT", "生成数量；范围 1-1000，超出报错", false, "1"),
 		},
 	}
 }

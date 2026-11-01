@@ -54,16 +54,22 @@ func (m *Module) Meta() model.Meta {
 		Aliases:  []string{"cms", "waf", "fingerprint"},
 		Category: modulekit.CategoryWeb,
 		Summary:  "CMS / WAF / 技术栈指纹识别",
-		Description: "移植自作者的 QianKunQuan 项目：内置 21 款 CMS、14 款 WAF/CDN 指纹\n" +
-			"与常见技术栈识别规则，一次请求输出 CMS 及版本、WAF 与技术栈结论。\n" +
-			"只发只读 GET 请求，不做目录爆破（目录爆破请使用 webdir）。",
+		Description: "对目标首页发起只读 GET 请求，内置 21 款 CMS、14 款 WAF/CDN 指纹与常见技术栈规则，\n" +
+			"一次请求输出 CMS 名称及版本、WAF/CDN 与技术栈结论，用于目标技术画像与防护识别。\n" +
+			"纯 Go 实现、无外部依赖；只读取单个页面，不做目录爆破（目录爆破请使用 webdir）；\n" +
+			"指纹数据移植自作者 QianKunQuan 项目，识别结果可能存在误报，建议结合人工复核。",
+		Usage:  "use webfinger\nset URL https://example.com\nset UA Mozilla/5.0\nrun",
 		Author: modulekit.Author,
 		Options: []model.Option{
-			modulekit.Option("URL", "目标站点 URL，例如 https://example.com", true, ""),
-			modulekit.Option("TIMEOUT", "单次请求超时", false, "10s"),
-			modulekit.Option("UA", "自定义 User-Agent", false, ""),
+			modulekit.Option("URL", "目标站点 URL，必须以 http:// 或 https:// 开头；不自动补全协议", true, ""),
+			modulekit.Option("TIMEOUT", "单次请求超时；格式如 10s；超时直接报错", false, "10s"),
+			modulekit.Option("UA", "自定义 User-Agent；留空使用内置 Chrome 120 标识", false, ""),
 		},
-		References: []string{"https://github.com/ctkqiang/QianKunQuan"},
+		References: []string{
+			"https://github.com/ctkqiang/NezhaCli",
+			"https://wpscan.com/",
+			"https://www.rfc-editor.org/rfc/rfc9110",
+		},
 	}
 }
 

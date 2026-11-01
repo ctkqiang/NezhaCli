@@ -71,21 +71,27 @@ func (m *Module) Meta() model.Meta {
 		Aliases:  []string{"wp_priv_esc", "wordpress_register"},
 		Category: modulekit.CategoryWeb,
 		Summary:  "WordPress 注册接口权限提升验证",
-		Description: "移植自作者 CVE-Exploits 仓库的 CVE-2025-4334 PoC：\n" +
-			"针对存在 role 字段校验缺失的 WordPress 插件注册接口，\n" +
-			"验证是否可通过构造 role=administrator 的注册请求创建管理员账户。\n" +
-			"该操作会在目标站点真实创建账户，属于高影响行为，必须已获书面授权。",
+		Description: "验证 WordPress 插件注册接口是否存在 CVE-2025-4334 权限提升缺陷。\n" +
+			"适用于已获授权的 WordPress 站点验证，判断接口是否接受 role 字段注入。\n" +
+			"纯 Go 实现、无外部依赖；先提取注册表单的 wpr_nonce 与 wpr_form_id，\n" +
+			"再向 admin-ajax.php 发送 role=administrator 的注册请求，按响应同时包含\n" +
+			"success 与 user_id 判定成功。该操作会在目标站点真实创建管理员账户，必须已获书面授权。",
+		Usage:  "use cve_2025_4334\nset URL https://target.com\nset FORM https://target.com/register\nrun",
 		Author: modulekit.Author,
 		Impact: "高（会在目标站点创建管理员账户）",
 		Options: []model.Option{
-			modulekit.Option("URL", "WordPress 站点基础 URL，例如 https://target.com", true, ""),
-			modulekit.Option("FORM", "包含注册表单的页面 URL；留空使用 URL 首页", false, ""),
-			modulekit.Option("USERNAME", "注册用户名", false, "0xgh057r3c0nadmin"),
-			modulekit.Option("EMAIL", "注册邮箱", false, "test@admin.ksa"),
-			modulekit.Option("PASSWORD", "注册密码", false, "Wiz007@8876@"),
-			modulekit.Option("TIMEOUT", "单次请求超时", false, "10s"),
+			modulekit.Option("URL", "WordPress 站点基础 URL，必须以 http:// 或 https:// 开头", true, ""),
+			modulekit.Option("FORM", "含注册表单的页面 URL；留空用 URL 首页；页面需含 wpr_nonce 字段", false, ""),
+			modulekit.Option("USERNAME", "注册用户名；目标站点将真实创建该账户", false, "0xgh057r3c0nadmin"),
+			modulekit.Option("EMAIL", "注册邮箱；需符合邮箱格式以免被插件拒绝", false, "test@admin.ksa"),
+			modulekit.Option("PASSWORD", "注册密码；建议使用强随机值", false, "Wiz007@8876@"),
+			modulekit.Option("TIMEOUT", "单次请求超时；格式如 10s；超时直接报错", false, "10s"),
 		},
-		References: []string{"https://github.com/ctkqiang/CVE-Exploits/tree/main/CVE-2025-4334"},
+		References: []string{
+			"https://github.com/ctkqiang/NezhaCli",
+			"https://nvd.nist.gov/vuln/detail/CVE-2025-4334",
+			"https://wpscan.com/",
+		},
 	}
 }
 

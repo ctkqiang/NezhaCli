@@ -47,13 +47,21 @@ func (m *Module) Meta() model.Meta {
 		Category: modulekit.CategoryWeb,
 		Summary:  "HTTP 安全头、Cookie 与标准文件审计",
 		Description: "对目标 URL 发起只读 GET 请求，审计 CSP、HSTS、X-Frame-Options 等安全响应头，\n" +
-			"检查 Cookie 的 Secure、HttpOnly 与 SameSite 属性，并枚举 robots.txt、sitemap.xml、\n" +
-			"security.txt 与 Allow 方法。不发送任何漏洞利用载荷。",
+			"并检查 Cookie 的 Secure、HttpOnly 与 SameSite 属性，用于站点上线前的安全基线核查。\n" +
+			"纯 Go 实现、无外部依赖，全程只读不发送任何漏洞利用载荷；DEEP 开启时追加\n" +
+			"robots.txt、sitemap.xml、security.txt 等标准情报文件与 Allow 方法检查。\n" +
+			"发现目标站点后可用本模块摸底，再用 webdir 探测敏感目录与备份文件。",
+		Usage:  "use web\nset URL https://example.com\nset DEEP true\nrun",
 		Author: modulekit.Author,
 		Options: []model.Option{
-			modulekit.Option("URL", "目标 URL，可省略 http://", true, ""),
-			modulekit.Option("TIMEOUT", "单次 HTTP 请求超时", false, "10s"),
-			modulekit.Option("DEEP", "是否检查标准文件与 Allow 方法", false, "true"),
+			modulekit.Option("URL", "目标 URL，可省略 http:// 前缀；仅发送只读 GET 请求", true, ""),
+			modulekit.Option("TIMEOUT", "单次 HTTP 请求超时；格式如 10s；过短易误报超时", false, "10s"),
+			modulekit.Option("DEEP", "是否检查标准文件与 Allow 方法；true 或 false；关闭可提速", false, "true"),
+		},
+		References: []string{
+			"https://github.com/ctkqiang/NezhaCli",
+			"https://www.rfc-editor.org/rfc/rfc9110",
+			"https://owasp.org/www-project-top-ten/",
 		},
 	}
 }

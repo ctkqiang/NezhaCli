@@ -45,18 +45,23 @@ func (m *Module) Meta() model.Meta {
 		Aliases:  []string{"vector", "vectordb"},
 		Category: modulekit.CategoryRecon,
 		Summary:  "向量数据库攻击面只读评估",
-		Description: "移植自作者的 vecmap 项目：对 Qdrant、Milvus、Weaviate、Chroma、\n" +
-			"Elasticsearch、OpenSearch、Typesense、Vespa 与 Redis 执行只读指纹识别、\n" +
-			"集合/索引枚举与 CVE 版本关联，全部结论附带官方来源。\n" +
-			"铁律：只发 GET/HEAD/OPTIONS 与只读 POST（Milvus v2 集合列表），不做任何破坏性操作。",
+		Description: "对向量数据库实例执行只读指纹识别、集合索引枚举与 CVE 版本关联。\n" +
+			"适用于评估 Qdrant、Milvus、Weaviate、Chroma、Elasticsearch 等实例的暴露面。\n" +
+			"移植自作者的 vecmap 项目，纯 Go 实现；只发送 GET/HEAD/OPTIONS 与只读 POST，\n" +
+			"不做任何破坏性操作，全部 CVE 结论附带官方来源链接。",
+		Usage:  "use vecmap\nset TARGET http://10.0.0.5:6333\nset DEEP false\nrun",
 		Author: modulekit.Author,
 		Options: []model.Option{
-			modulekit.Option("TARGET", "目标 URL 或 host[:port]，例如 http://10.0.0.5:6333", true, ""),
-			modulekit.Option("ADAPTER", "auto 或 qdrant/milvus/weaviate/chroma/elasticsearch/opensearch/typesense/vespa/redis", false, "auto"),
-			modulekit.Option("TIMEOUT", "单次探测超时", false, "3s"),
-			modulekit.Option("DEEP", "是否枚举集合与索引（true/false）", false, "true"),
+			modulekit.Option("TARGET", "目标 URL 或 host:port 写法；缺协议自动补 http；示例 http://10.0.0.5:6333。", true, ""),
+			modulekit.Option("ADAPTER", "探测适配器；取值 auto 或具体厂商名；auto 依次探测全部。", false, "auto"),
+			modulekit.Option("TIMEOUT", "单次探测超时；支持 3s 等 Go 时长格式。", false, "3s"),
+			modulekit.Option("DEEP", "是否枚举集合与索引；取值 true/false；只读操作不修改数据。", false, "true"),
 		},
-		References: []string{"https://github.com/ctkqiang/vecmap"},
+		References: []string{
+			"https://github.com/ctkqiang/NezhaCli",
+			"https://qdrant.tech/documentation/",
+			"https://milvus.io/docs/",
+		},
 	}
 }
 

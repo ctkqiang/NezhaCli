@@ -44,17 +44,22 @@ func (m *Module) Meta() model.Meta {
 		Aliases:  []string{"blindsql", "payload"},
 		Category: modulekit.CategoryWeb,
 		Summary:  "盲注 payload 字典库",
-		Description: "移植自作者的 BlindSQL 项目：内置布尔/时间盲注 payload 字典，\n" +
-			"支持关键词过滤、计数与外部字典加载（每行一个 payload）。\n" +
-			"完整 2465 行上游字典见 https://github.com/ctkqiang/BlindSQL 的 payload.txt；\n" +
-			"本模块内置覆盖常用族的代表性子集。只输出字典内容，不主动发起请求。",
+		Description: "输出布尔/时间盲注 payload 字典，覆盖引号闭合、注释、逻辑运算与延时等常用注入族。\n" +
+			"用于配合手工盲注测试或自建字典，支持关键词过滤与外部字典加载。\n" +
+			"纯 Go 实现、无外部依赖；只输出字典内容，不主动发起任何网络请求。\n" +
+			"内置字典是作者 BlindSQL 项目 payload.txt 的常用族代表性子集，完整字典见该项目仓库。",
+		Usage:  "use payloads\nset QUERY SLEEP\nset LIMIT 20\nrun",
 		Author: modulekit.Author,
 		Options: []model.Option{
-			modulekit.Option("QUERY", "过滤关键词，例如 OR 或 SLEEP；留空显示全部", false, ""),
-			modulekit.Option("WORDLIST", "外部字典路径；存在时优先于内置字典", false, ""),
-			modulekit.Option("LIMIT", "显示条目上限；0 表示不限制", false, "100"),
+			modulekit.Option("QUERY", "过滤关键词，大小写不敏感；留空显示全部内置 payload", false, ""),
+			modulekit.Option("WORDLIST", "外部字典路径，每行一条并跳过空行与 # 注释；优先于内置字典", false, ""),
+			modulekit.Option("LIMIT", "显示条目上限，0 表示不限制；超出部分以省略号提示", false, "100"),
 		},
-		References: []string{"https://github.com/ctkqiang/BlindSQL"},
+		References: []string{
+			"https://github.com/ctkqiang/NezhaCli",
+			"https://owasp.org/www-project-top-ten/",
+			"https://attack.mitre.org/",
+		},
 	}
 }
 

@@ -58,21 +58,30 @@ func (m *Module) Meta() model.Meta {
 		Summary:  "ESP 协处理器 deauth/disassoc 帧注入",
 		Description: "通过 ESP8266/ESP32 协处理器向指定 BSSID 注入广播或定向的\n" +
 			"deauthentication / disassociation 管理帧，用于授权范围内的无线健壮性测试。\n" +
-			"CHANNEL=0 时先扫描定位目标 AP 的信道。\n" +
-			"WPA3 与 6GHz 网络强制启用 PMF，未认证管理帧会被客户端丢弃，这是协议约束。",
+			"影响等级高：会中断目标无线服务，仅限书面授权目标；\n" +
+			"WPA3 与 6GHz 强制启用 PMF，未认证管理帧会被客户端丢弃，这是协议约束。\n" +
+			"先用 wifi_scan 定位 BSSID 与信道，再执行本模块注入。",
+		Usage: "use wifi_deauth\n" +
+			"set BSSID AA:BB:CC:DD:EE:FF\n" +
+			"set CHANNEL 6\n" +
+			"run",
 		Author: modulekit.Author,
 		Impact: "高（会中断目标无线服务）",
 		Options: []model.Option{
-			modulekit.Option("PORT", "串口设备；留空自动探测", false, ""),
-			modulekit.Option("BSSID", "目标 AP 的 BSSID", true, ""),
-			modulekit.Option("CHANNEL", "目标信道；0 表示先扫描自动定位", false, "0"),
-			modulekit.Option("STATION", "目标客户端 MAC；留空表示广播", false, ""),
-			modulekit.Option("FRAME", "帧类型：deauth / disassoc / both", false, "both"),
-			modulekit.Option("COUNT", "注入帧总数", false, "32"),
-			modulekit.Option("INTERVAL", "帧间隔", false, "50ms"),
-			modulekit.Option("REASON", "802.11 Reason Code", false, "7"),
+			modulekit.Option("PORT", "串口设备路径；留空时自动探测", false, ""),
+			modulekit.Option("BSSID", "目标 AP 的 BSSID；格式 AA:BB:CC:DD:EE:FF，解析失败报错", true, ""),
+			modulekit.Option("CHANNEL", "目标信道；0 表示先扫描定位目标所在信道", false, "0"),
+			modulekit.Option("STATION", "目标客户端 MAC；留空或全 F 表示广播所有客户端", false, ""),
+			modulekit.Option("FRAME", "注入帧类型；取值 deauth/disassoc/both", false, "both"),
+			modulekit.Option("COUNT", "注入帧总数；范围 1-10000，超出报错", false, "32"),
+			modulekit.Option("INTERVAL", "相邻帧间隔时长；不能为负数，0 表示不等待", false, "50ms"),
+			modulekit.Option("REASON", "802.11 Reason Code；范围 1-65535，超出报错", false, "7"),
 		},
-		References: []string{"https://github.com/ctkqiang/wifisec"},
+		References: []string{
+			"https://github.com/ctkqiang/NezhaCli",
+			"https://docs.espressif.com/projects/esp-at/en/latest/",
+			"https://en.wikipedia.org/wiki/Wi-Fi_Deauthentication_attack",
+		},
 	}
 }
 

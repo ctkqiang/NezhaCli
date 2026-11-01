@@ -104,15 +104,22 @@ func (m *Module) Meta() model.Meta {
 		Aliases:  []string{"sub", "subenum"},
 		Category: modulekit.CategoryRecon,
 		Summary:  "内置字典与证书透明日志子域名枚举",
-		Description: "合并内置字典、自定义字典与 crt.sh 证书透明日志生成候选子域名，\n" +
-			"再通过标准库 DNS 解析器并发验证。自动执行通配符解析检测，\n" +
-			"命中结果按名称排序并保留来源标记。",
+		Description: "合并内置字典、自定义字典与 crt.sh 证书透明日志生成候选子域名。\n" +
+			"适用于扩充资产攻击面、发现隐藏管理入口与未公开测试环境。\n" +
+			"使用标准库 DNS 解析器并发验证，候选总量上限 3000、解析并发上限 64；\n" +
+			"自动执行通配符解析检测，命中结果按名称排序并保留来源标记。",
+		Usage:  "use subdomain\nset DOMAIN example.com\nset WORDLIST subdomains.txt\nrun",
 		Author: modulekit.Author,
 		Options: []model.Option{
-			modulekit.Option("DOMAIN", "根域名，例如 example.com", true, ""),
-			modulekit.Option("WORDLIST", "自定义字典路径，每行一个子域名前缀", false, ""),
-			modulekit.Option("THREADS", "DNS 解析并发数", false, "32"),
-			modulekit.Option("CRT", "是否查询 crt.sh 证书透明日志", false, "true"),
+			modulekit.Option("DOMAIN", "枚举的根域名；可含协议前缀；会自动归一化并转小写。", true, ""),
+			modulekit.Option("WORDLIST", "自定义字典文件路径；每行一个前缀；忽略空行与 # 注释。", false, ""),
+			modulekit.Option("THREADS", "DNS 解析并发数；自动限制在 4 至 64 之间。", false, "32"),
+			modulekit.Option("CRT", "是否查询 crt.sh 证书透明日志；取值 true/false；失败自动降级。", false, "true"),
+		},
+		References: []string{
+			"https://github.com/ctkqiang/NezhaCli",
+			"https://crt.sh/",
+			"https://www.rfc-editor.org/rfc/rfc1034",
 		},
 	}
 }

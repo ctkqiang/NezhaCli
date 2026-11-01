@@ -47,18 +47,20 @@ func (m *Module) Meta() model.Meta {
 		Aliases:  []string{"scan", "port_scan"},
 		Category: modulekit.CategoryRecon,
 		Summary:  "并发 TCP 端口扫描与服务横幅",
-		Description: "对单个主机、域名或 CIDR 执行并发 TCP connect 扫描。\n" +
-			"不使用 raw socket，因此在无 CAP_NET_RAW 的 Termux 上可运行；\n" +
-			"开启 BANNER 后会读取服务首段数据，用于识别 SSH、HTTP 等明文服务。",
+		Description: "对单个主机、域名或 CIDR 执行并发 TCP connect 端口扫描。\n" +
+			"适用于快速盘点资产开放端口、定位内网服务与验证防火墙策略。\n" +
+			"纯 Go 实现无外部依赖，不使用 raw socket，在无 Root 的 Termux 上可运行；\n" +
+			"并发硬上限 512，发现开放端口后可配合 service 模块识别服务横幅。",
+		Usage:  "use portscan\nset TARGET 192.168.1.0/24\nset PORTS 1-1024\nrun",
 		Author: modulekit.Author,
 		Options: []model.Option{
-			modulekit.Option("TARGET", "目标主机、域名或 CIDR，多个用逗号分隔", true, ""),
-			modulekit.Option("PORTS", "目标端口，支持 22,80,443 与 1-1024 写法", false, recon.DefaultPortString),
-			modulekit.Option("TIMEOUT", "单次连接与横幅超时", false, "400ms"),
-			modulekit.Option("WORKERS", "并发工作协程数，上限 512", false, "256"),
-			modulekit.Option("BANNER", "是否读取服务横幅（true/false）", false, "true"),
+			modulekit.Option("TARGET", "待扫描的主机、域名或 CIDR；多个用逗号分隔并逐项展开。", true, ""),
+			modulekit.Option("PORTS", "目标端口；支持逗号列表与 1-1024 区间写法；非法格式报错。", false, recon.DefaultPortString),
+			modulekit.Option("TIMEOUT", "单次连接与横幅读取超时；支持 400ms、15s 等 Go 时长格式。", false, "400ms"),
+			modulekit.Option("WORKERS", "并发扫描协程数；超出上限自动截断至 512；过大会拖慢设备。", false, "256"),
+			modulekit.Option("BANNER", "是否读取服务横幅；取值 true/false；关闭后仅探测端口开放。", false, "true"),
 		},
-		References: []string{"https://github.com/ctkqiang/NezhaCli"},
+		References: []string{"https://github.com/ctkqiang/NezhaCli", "https://attack.mitre.org/"},
 	}
 }
 

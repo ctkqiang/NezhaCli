@@ -76,18 +76,20 @@ func (m *Module) Meta() model.Meta {
 		Aliases:  []string{"local", "neighbors"},
 		Category: modulekit.CategoryRecon,
 		Summary:  "本机接口、局域网网段与活跃主机发现",
-		Description: "枚举网络接口与地址，自动推断当前局域网 /24 网段，\n" +
-			"并对网段内主机执行常见端口的 TCP 存活探测。\n" +
-			"不使用 ARP 原始套接字，因此在无 Root 的 Termux 上可运行；\n" +
-			"只开放 UDP 或被防火墙静默丢弃的主机可能漏报。",
+		Description: "枚举本机网络接口，并对局域网网段执行 TCP 存活探测发现活跃主机。\n" +
+			"适用于接入新网络后快速盘点同网段主机、定位网关与可疑设备。\n" +
+			"不使用 ARP 原始套接字，纯 Go 实现，在无 Root 的 Termux 上可运行；\n" +
+			"网段展开上限约 /22，只开放 UDP 或被防火墙静默丢弃的主机可能漏报。",
+		Usage:  "use lan\nset CIDR 192.168.1.0/24\nrun",
 		Author: modulekit.Author,
 		Options: []model.Option{
-			modulekit.Option("CIDR", "自定义网段；留空自动推断本机 /24", false, ""),
-			modulekit.Option("DISCOVER", "是否执行活跃主机探测（true/false）", false, "true"),
-			modulekit.Option("PORTS", "存活探测端口", false, DefaultPorts),
-			modulekit.Option("TIMEOUT", "单次连接超时", false, "300ms"),
-			modulekit.Option("WORKERS", "并发探测主机数", false, "128"),
+			modulekit.Option("CIDR", "自定义探测网段；留空时自动推断本机 /24 网段。", false, ""),
+			modulekit.Option("DISCOVER", "是否执行活跃主机探测；取值 true/false；关闭仅列出接口。", false, "true"),
+			modulekit.Option("PORTS", "存活探测端口；支持逗号与区间写法；任一端口开放即活跃。", false, DefaultPorts),
+			modulekit.Option("TIMEOUT", "单次连接超时；支持 300ms 等 Go 时长格式。", false, "300ms"),
+			modulekit.Option("WORKERS", "并发探测主机数；自动限制在 8 至 256 之间。", false, "128"),
 		},
+		References: []string{"https://github.com/ctkqiang/NezhaCli", "https://attack.mitre.org/"},
 	}
 }
 
