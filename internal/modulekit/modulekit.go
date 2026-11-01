@@ -4,9 +4,11 @@ package modulekit
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/ctkqiang/nezha_cli/internal/model"
 	"github.com/ctkqiang/nezha_cli/internal/text"
+	"github.com/ctkqiang/nezha_cli/pkg/logger"
 )
 
 const (
@@ -32,6 +34,15 @@ const (
 	DefaultTableWidth = 44
 )
 
+// categoryColors 是类别到终端颜色的映射，供控制台与模块统一着色。
+var categoryColors = map[string]string{
+	CategoryRecon:     "\033[36m",
+	CategoryWeb:       "\033[35m",
+	CategoryWireless:  "\033[33m",
+	CategorySystem:    "\033[32m",
+	CategoryBluetooth: "\033[34m",
+}
+
 /*
 Option 构造一个模块参数声明。
 
@@ -54,7 +65,25 @@ func Option(name string, description string, required bool, defaultValue string)
 }
 
 /*
-Section 向输出目标写入段落标题。
+CategoryColor 返回类别对应的终端颜色码。
+未收录的类别返回白色；颜色关闭时由调用方决定是否忽略。
+
+参数:
+  - category (string): 类别名。
+
+返回:
+  - string: ANSI 颜色码。
+*/
+func CategoryColor(category string) string {
+	if color, ok := categoryColors[category]; ok {
+		return color
+	}
+	return "\033[37m"
+}
+
+/*
+Section 向输出目标写入带标尺的段落标题。
+标题着色后接灰色横线，横线长度随终端宽度自适应。
 
 参数:
   - out (io.Writer): 输出目标。
@@ -64,11 +93,42 @@ Section 向输出目标写入段落标题。
   - 无。
 */
 func Section(out io.Writer, title string) {
-	fmt.Fprint(out, text.Section(title))
+	ruleWidth := text.TermWidth() - text.Width(title) - 8
+	if ruleWidth < 4 {
+		ruleWidth = 4
+	}
+	rule := strings.Repeat("─", ruleWidth)
+
+	if !logger.ColorEnabled {
+		fmt.Fprintf(out, "\n──┤ %s ├%s\n", title, rule)
+		return
+	}
+	fmt.Fprintf(out, "\n\033[90m──┤ \033[0m\033[1;36m%s\033[0m \033[90m├%s\033[0m\n", title, rule)
 }
 
 /*
-Table 向输出目标写入等宽表格。
+tableStyle 返回当前颜色开关下的表格样式。
+
+参数:
+  - 无。
+
+返回:
+  - text.TableStyle: 边框灰色、表头粗体青色的样式；颜色关闭时为空样式。
+*/
+func tableStyle() text.TableStyle {
+	if !logger.ColorEnabled {
+		return text.TableStyle{}
+	}
+	return text.TableStyle{
+		Border: "\033[90m",
+		Header: "\033[1;36m",
+		Reset:  "\033[0m",
+	}
+}
+
+/*
+Table 向输出目标写入带样式的等宽表格。
+边框为灰色，表头为粗体青色；颜色关闭时自动退化为纯文本。
 
 参数:
   - out (io.Writer): 输出目标。
@@ -83,11 +143,11 @@ func Table(out io.Writer, headers []string, rows [][]string, maxWidth int) {
 	if maxWidth <= 0 {
 		maxWidth = DefaultTableWidth
 	}
-	fmt.Fprint(out, text.Table(headers, rows, maxWidth))
+	fmt.Fprint(out, text.TableStyled(headers, rows, maxWidth, tableStyle()))
 }
 
 /*
-KeyValues 向输出目标写入两列键值表。
+KeyValues 向输出目标写入两列键值表，样式与 Table 一致。
 
 参数:
   - out (io.Writer): 输出目标。
@@ -98,7 +158,11 @@ KeyValues 向输出目标写入两列键值表。
   - 无。
 */
 func KeyValues(out io.Writer, pairs [][2]string, maxWidth int) {
-	fmt.Fprint(out, text.KeyValues(pairs, maxWidth))
+	rows := make([][]string, 0, len(pairs))
+	for _, pair := range pairs {
+		rows = append(rows, []string{pair[0], pair[1]})
+	}
+	fmt.Fprint(out, text.TableStyled([]string{"字段", "值"}, rows, maxWidth, tableStyle()))
 }
 
 /*
