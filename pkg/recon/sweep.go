@@ -1,3 +1,4 @@
+// recon 包实现哪吒终端在 Termux/ARM64 环境下的本地网络侦察能力。
 package recon
 
 import (
@@ -7,6 +8,7 @@ import (
 	"net"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -14,25 +16,28 @@ import (
 )
 
 const (
-	// workerPoolSize 固定工作协程数量，绝不为每个 IP 创建协程，避免触发 Termux 的幽灵进程杀手。
-	workerPoolSize = 256
+	// DefaultWorkerCount 默认工作协程数，兼顾吞吐与移动端内存上限。
+	DefaultWorkerCount = 256
 
-	// jobQueueSize 任务队列容量，两倍工作协程即可填满流水线，同时避免占用过多移动端内存。
-	jobQueueSize = workerPoolSize * 2
+	// MaxWorkerCount 工作协程硬上限，防止调用方误设过大值拖垮设备。
+	MaxWorkerCount = 512
 
-	// resultQueueSize 结果队列容量，防止工作协程因主协程短暂停顿而阻塞。
-	resultQueueSize = workerPoolSize * 2
+	// DefaultDialTimeout 默认连接超时，快速越过 DROP 型防火墙。
+	DefaultDialTimeout = 400 * time.Millisecond
 
-	// dialTimeout 连接超时，400ms 足以覆盖局域网往返，又能快速越过 DROP 型防火墙。
-	dialTimeout = 400 * time.Millisecond
+	// DefaultBannerTimeout 默认横幅读取超时。
+	DefaultBannerTimeout = 400 * time.Millisecond
 
-	// bannerReadTimeout 横幅读取超时，服务端通常会在数百毫秒内返回欢迎信息。
-	bannerReadTimeout = 400 * time.Millisecond
+	// DefaultPortString 默认扫描端口的字符串形式，供 CLI 与 TUI 展示。
+	DefaultPortString = "22,80,443,445,3389"
+
+	// jobQueueFactor 任务与结果队列相对于工作协程数的倍数。
+	jobQueueFactor = 2
 
 	// bannerBufferSize 单次读取上限，足以覆盖 SSH、FTP、HTTP 的首段指纹。
 	bannerBufferSize = 512
 
-	// bannerDisplayLimit 最终保留的指纹长度，防止恶意服务用超长内容污染终端。
+	// bannerDisplayLimit 最终保留的指纹长度，防止恶意服务污染终端。
 	bannerDisplayLimit = 256
 
 	// maxSweepHosts 单次扫描的 IPv4 地址上限（约 /16），避免误扫 /8 拖垮手机。
@@ -48,25 +53,50 @@ var (
 		},
 	}
 
-	// defaultScanPorts 战术侦察常用端口：SSH、HTTP、HTTPS、SMB、RDP。
+	// defaultScanPorts 默认端口数组，必须与 DefaultPortString 保持一致。
 	defaultScanPorts = [...]uint16{22, 80, 443, 445, 3389}
 
 	// httpProbe 针对明文 HTTP 端口的最小 HEAD 探针。
-	// 包级字节切片只初始化一次，扫描过程中不产生额外分配。
 	httpProbe = []byte("HEAD / HTTP/1.0\r\n\r\n")
 
 	// 编译期校验 Scanner 是否实现 LocalRecon，防止后续重构破坏接口签名。
 	_ LocalRecon = (*Scanner)(nil)
 )
 
-// LocalRecon 定义本地网络侦察接口；Phase 3 先实现并发端口扫描与服务指纹抓取。
+// LocalRecon 定义本地网络侦察接口；Phase 3 实现并发端口扫描与服务指纹抓取。
 type LocalRecon interface {
 	ConcurrentSweep(ctx context.Context, cidr string) ([]string, error)
 	GrabBanner(ctx context.Context, targetIP string, port int) (string, error)
 }
 
-// Scanner 是 LocalRecon 的默认实现，零值即可安全并发使用。
-type Scanner struct{}
+// Finding 表示一条开放的端点情报，包含端点地址与清洗后的服务指纹。
+type Finding struct {
+	Endpoint string `json:"endpoint"`
+	Banner   string `json:"banner,omitempty"`
+}
+
+// Scanner 是 LocalRecon 的默认实现，零值即可使用默认配置。
+type Scanner struct {
+	// Ports 目标端口；为空时使用 DefaultPorts。
+	Ports []uint16
+
+	// Workers 工作协程数；小于等于 0 时使用 DefaultWorkerCount，超过 MaxWorkerCount 会被截断。
+	Workers int
+
+	// DialTimeout 连接超时；小于等于 0 时使用 DefaultDialTimeout。
+	DialTimeout time.Duration
+
+	// BannerTimeout 横幅读取超时；小于等于 0 时使用 DefaultBannerTimeout。
+	BannerTimeout time.Duration
+}
+
+// scanConfig 是 Scanner 归一化后的内部配置，避免扫描过程中反复判断默认值。
+type scanConfig struct {
+	ports         []uint16
+	workers       int
+	dialTimeout   time.Duration
+	bannerTimeout time.Duration
+}
 
 // scanTask 用紧凑结构表示一个扫描任务，减少通道传输与堆积开销。
 type scanTask struct {
@@ -74,9 +104,15 @@ type scanTask struct {
 	port uint16
 }
 
+// scanResult 表示工作协程上报的开放端点与横幅。
+type scanResult struct {
+	endpoint string
+	banner   string
+}
+
 /*
-NewScanner 创建一个可以直接用于并发扫描的侦察器。
-Scanner 为零值安全类型，返回指针是为了满足 LocalRecon 的接口实现方式。
+NewScanner 创建一个使用默认配置的侦察器。
+Scanner 的零值同样可用，返回指针是为了满足 LocalRecon 的接口实现方式。
 
 参数:
   - 无。
@@ -89,20 +125,120 @@ func NewScanner() *Scanner {
 }
 
 /*
+DefaultPorts 返回一份默认端口的副本，防止调用方修改全局默认值。
+
+参数:
+  - 无。
+
+返回:
+  - []uint16: 默认端口列表，按升序排列。
+*/
+func DefaultPorts() []uint16 {
+	ports := make([]uint16, len(defaultScanPorts))
+	copy(ports, defaultScanPorts[:])
+	return ports
+}
+
+/*
+ParsePorts 将逗号分隔的端口字符串解析为去重、升序的端口切片。
+支持 "22,80,443"、"22, 80, 443" 以及 "1-1024" 区间写法。
+
+参数:
+  - value (string): 待解析的端口字符串。
+
+返回:
+  - []uint16: 去重并升序排列的合法端口。
+  - error: 端口为空、格式非法、区间颠倒或超出 1-65535 时返回错误。
+*/
+func ParsePorts(value string) ([]uint16, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil, fmt.Errorf("端口列表不能为空")
+	}
+
+	parts := strings.Split(value, ",")
+	ports := make([]uint16, 0, len(parts))
+	seen := make(map[uint16]struct{}, len(parts))
+
+	addPort := func(port uint16) {
+		if _, ok := seen[port]; ok {
+			return
+		}
+		seen[port] = struct{}{}
+		ports = append(ports, port)
+	}
+
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+
+		if strings.Contains(part, "-") {
+			bounds := strings.SplitN(part, "-", 2)
+			start, startErr := strconv.Atoi(strings.TrimSpace(bounds[0]))
+			end, endErr := strconv.Atoi(strings.TrimSpace(bounds[1]))
+			if startErr != nil || endErr != nil || start < 1 || end > 65535 || start > end {
+				return nil, fmt.Errorf("非法端口区间 %q，有效范围为 1-65535", part)
+			}
+			for port := start; port <= end; port++ {
+				addPort(uint16(port))
+			}
+			continue
+		}
+
+		number, err := strconv.Atoi(part)
+		if err != nil || number < 1 || number > 65535 {
+			return nil, fmt.Errorf("非法端口 %q，有效范围为 1-65535", part)
+		}
+		addPort(uint16(number))
+	}
+
+	if len(ports) == 0 {
+		return nil, fmt.Errorf("端口列表不能为空")
+	}
+
+	sort.Slice(ports, func(i, j int) bool {
+		return ports[i] < ports[j]
+	})
+	return ports, nil
+}
+
+/*
 ConcurrentSweep 启动针对目标网段的高并发、低延迟扫描引擎。
-此方法使用固定大小的 Worker Pool 限制协程数量，
-并利用极短超时避免被丢弃数据包的防火墙长期挂起。
-为保护移动端资源，单次扫描最多处理约 /16 个 IPv4 地址。
+该方法是 Scan 的兼容包装，只返回 "ip:port" 形式的开放端点列表。
 
 参数:
   - ctx (context.Context): 全局上下文，用于捕获终止信号并执行安全退出。
   - cidr (string): 需要探测的目标 IPv4 子网，例如 "192.168.1.0/24"。
 
 返回:
-  - []string: 探测到的开放端点列表，格式为 "ip:port"；取消时保留已发现的部分结果。
+  - []string: 开放端点列表；取消时保留已发现的部分结果。
   - error: CIDR 解析失败、范围过大或上下文被取消时返回错误。
 */
 func (s *Scanner) ConcurrentSweep(ctx context.Context, cidr string) ([]string, error) {
+	findings, err := s.Scan(ctx, cidr)
+	endpoints := make([]string, len(findings))
+	for i := range findings {
+		endpoints[i] = findings[i].Endpoint
+	}
+	return endpoints, err
+}
+
+/*
+Scan 执行完整的并发端口扫描，并返回包含服务指纹的结构化结果。
+扫描使用固定大小的 Worker Pool、微超时拨号与 sync.Pool 横幅缓冲区，
+适合在无 Root 权限的 Termux/ARM64 设备上运行。
+
+参数:
+  - ctx (context.Context): 全局上下文，用于取消扫描。
+  - cidr (string): 目标 IPv4 子网，例如 "192.168.1.0/24"。
+
+返回:
+  - []Finding: 按端点升序排列的开放端口与服务指纹。
+  - error: CIDR 解析失败、范围过大或上下文被取消时返回错误。
+*/
+func (s *Scanner) Scan(ctx context.Context, cidr string) ([]Finding, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -126,20 +262,21 @@ func (s *Scanner) ConcurrentSweep(ctx context.Context, cidr string) ([]string, e
 		return nil, fmt.Errorf("目标范围过大：%d 个地址，上限为 %d", total, maxSweepHosts)
 	}
 
-	logger.Info("开始并发扫描 %s：%d 个可用地址 × %d 个端口", network.String(), total, len(defaultScanPorts))
-	logger.Debug("扫描参数：工作协程=%d，连接超时=%v，横幅超时=%v", workerPoolSize, dialTimeout, bannerReadTimeout)
+	cfg := s.config()
+	logger.Info("开始并发扫描 %s：%d 个可用地址 × %d 个端口", network.String(), total, len(cfg.ports))
+	logger.Debug("扫描参数：工作协程=%d，连接超时=%v，横幅超时=%v", cfg.workers, cfg.dialTimeout, cfg.bannerTimeout)
 
-	jobs := make(chan scanTask, jobQueueSize)
-	results := make(chan string, resultQueueSize)
+	jobs := make(chan scanTask, cfg.workers*jobQueueFactor)
+	results := make(chan scanResult, cfg.workers*jobQueueFactor)
 
 	var wg sync.WaitGroup
 
 	// 启动固定大小的工作协程池；整个扫描期间协程数量保持不变。
-	for i := 0; i < workerPoolSize; i++ {
+	for i := 0; i < cfg.workers; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			scanWorker(ctx, jobs, results)
+			scanWorker(ctx, cfg, jobs, results)
 		}()
 	}
 
@@ -148,7 +285,7 @@ func (s *Scanner) ConcurrentSweep(ctx context.Context, cidr string) ([]string, e
 	go func() {
 		defer wg.Done()
 		defer close(jobs)
-		feedTasks(ctx, start, end, jobs)
+		feedTasks(ctx, start, end, cfg.ports, jobs)
 	}()
 
 	// 所有生产者与消费者退出后关闭结果通道，主协程据此判断扫描正常结束。
@@ -157,21 +294,26 @@ func (s *Scanner) ConcurrentSweep(ctx context.Context, cidr string) ([]string, e
 		close(results)
 	}()
 
-	found := make([]string, 0, 32)
+	findings := make([]Finding, 0, 32)
 	for {
 		select {
 		case <-ctx.Done():
 			// 等待所有协程退出后再返回，确保取消扫描时不会遗留协程。
 			wg.Wait()
-			logger.Warn("扫描已取消，保留已发现的 %d 个开放端点", len(found))
-			return found, ctx.Err()
-		case endpoint, ok := <-results:
+			logger.Warn("扫描已取消，保留已发现的 %d 个开放端点", len(findings))
+			return findings, ctx.Err()
+		case result, ok := <-results:
 			if !ok {
-				sort.Strings(found)
-				logger.Info("扫描结束，共发现 %d 个开放端点", len(found))
-				return found, nil
+				sort.Slice(findings, func(i, j int) bool {
+					return findings[i].Endpoint < findings[j].Endpoint
+				})
+				logger.Info("扫描结束，共发现 %d 个开放端点", len(findings))
+				return findings, nil
 			}
-			found = append(found, endpoint)
+			findings = append(findings, Finding{
+				Endpoint: result.endpoint,
+				Banner:   result.banner,
+			})
 		}
 	}
 }
@@ -214,8 +356,9 @@ func (s *Scanner) GrabBanner(ctx context.Context, targetIP string, port int) (st
 	}
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
 
+	cfg := s.config()
 	logger.Debug("抓取服务指纹：%s", addr)
-	banner, err := grabBanner(ctx, addr, uint16(port))
+	banner, err := grabBanner(ctx, addr, uint16(port), cfg)
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return "", ctxErr
@@ -228,6 +371,46 @@ func (s *Scanner) GrabBanner(ctx context.Context, targetIP string, port int) (st
 }
 
 /*
+config 将 Scanner 的可选字段归一化为扫描所需的内部配置。
+空端口、非正工作协程数与非正超时都会回落到默认值；
+工作协程数会被限制在 MaxWorkerCount 以内。
+
+参数:
+  - 无。
+
+返回:
+  - scanConfig: 已完成默认值与边界处理的扫描配置。
+*/
+func (s *Scanner) config() scanConfig {
+	cfg := scanConfig{
+		workers:       s.Workers,
+		dialTimeout:   s.DialTimeout,
+		bannerTimeout: s.BannerTimeout,
+	}
+
+	if len(s.Ports) > 0 {
+		// 复制端口切片，避免扫描期间调用方修改 Scanner.Ports 造成数据竞争。
+		cfg.ports = append([]uint16(nil), s.Ports...)
+	} else {
+		cfg.ports = defaultScanPorts[:]
+	}
+
+	if cfg.workers <= 0 {
+		cfg.workers = DefaultWorkerCount
+	}
+	if cfg.workers > MaxWorkerCount {
+		cfg.workers = MaxWorkerCount
+	}
+	if cfg.dialTimeout <= 0 {
+		cfg.dialTimeout = DefaultDialTimeout
+	}
+	if cfg.bannerTimeout <= 0 {
+		cfg.bannerTimeout = DefaultBannerTimeout
+	}
+	return cfg
+}
+
+/*
 feedTasks 以流式方式向任务通道投放 IP 与端口组合。
 该函数不会把整个网段展开为切片，从而把内存占用控制在常数级别。
 
@@ -235,18 +418,19 @@ feedTasks 以流式方式向任务通道投放 IP 与端口组合。
   - ctx (context.Context): 用于在取消时立即停止投放。
   - start (uint32): 起始 IPv4 地址。
   - end (uint32): 结束 IPv4 地址，包含在扫描范围内。
+  - ports ([]uint16): 需要扫描的端口列表。
   - jobs (chan<- scanTask): 工作协程消费的任务通道。
 
 返回:
   - 无。
 */
-func feedTasks(ctx context.Context, start, end uint32, jobs chan<- scanTask) {
-	if start > end {
+func feedTasks(ctx context.Context, start, end uint32, ports []uint16, jobs chan<- scanTask) {
+	if start > end || len(ports) == 0 {
 		return
 	}
 
 	for ip := start; ; ip++ {
-		for _, port := range defaultScanPorts {
+		for _, port := range ports {
 			select {
 			case <-ctx.Done():
 				return
@@ -265,13 +449,14 @@ scanWorker 是固定工作池中的消费者，负责拨号、抓取横幅并上
 
 参数:
   - ctx (context.Context): 全局上下文。
+  - cfg (scanConfig): 归一化后的扫描配置。
   - jobs (<-chan scanTask): 待扫描任务通道。
-  - results (chan<- string): 开放端点结果通道。
+  - results (chan<- scanResult): 开放端点结果通道。
 
 返回:
   - 无。
 */
-func scanWorker(ctx context.Context, jobs <-chan scanTask, results chan<- string) {
+func scanWorker(ctx context.Context, cfg scanConfig, jobs <-chan scanTask, results chan<- scanResult) {
 	// 地址缓冲区位于协程栈上循环复用，避免每个任务都调用 fmt.Sprintf。
 	var addrBuf [21]byte
 
@@ -285,7 +470,7 @@ func scanWorker(ctx context.Context, jobs <-chan scanTask, results chan<- string
 			}
 
 			addr := formatEndpoint(task.ip, task.port, addrBuf[:])
-			banner, err := grabBanner(ctx, addr, task.port)
+			banner, err := grabBanner(ctx, addr, task.port, cfg)
 			if err != nil {
 				if ctx.Err() != nil {
 					return
@@ -299,7 +484,7 @@ func scanWorker(ctx context.Context, jobs <-chan scanTask, results chan<- string
 			select {
 			case <-ctx.Done():
 				return
-			case results <- addr:
+			case results <- scanResult{endpoint: addr, banner: banner}:
 			}
 		}
 	}
@@ -339,18 +524,19 @@ dialContext 在微超时约束下建立 TCP 连接。
 参数:
   - ctx (context.Context): 全局上下文。
   - addr (string): 目标 "ip:port" 地址。
+  - timeout (time.Duration): 连接超时。
 
 返回:
   - net.Conn: 已建立的 TCP 连接。
   - error: 超时、拒绝连接或上下文取消时返回错误。
 */
-func dialContext(ctx context.Context, addr string) (net.Conn, error) {
+func dialContext(ctx context.Context, addr string, timeout time.Duration) (net.Conn, error) {
 	if ctx.Done() == nil {
-		return net.DialTimeout("tcp", addr, dialTimeout)
+		return net.DialTimeout("tcp", addr, timeout)
 	}
 
 	dialer := net.Dialer{
-		Timeout:   dialTimeout,
+		Timeout:   timeout,
 		KeepAlive: -1, // 短连接扫描关闭 TCP 保活，减少移动端定时器开销
 	}
 	return dialer.DialContext(ctx, "tcp", addr)
@@ -365,17 +551,18 @@ grabBanner 在已格式化的地址上执行一次短连接并读取服务横幅
   - ctx (context.Context): 全局上下文。
   - addr (string): 已格式化的 "ip:port" 地址。
   - port (uint16): 目标端口，用于决定是否发送 HTTP 探针。
+  - cfg (scanConfig): 归一化后的超时配置。
 
 返回:
   - string: 清洗后的服务横幅。
   - error: 连接失败或上下文取消时返回错误。
 */
-func grabBanner(ctx context.Context, addr string, port uint16) (string, error) {
+func grabBanner(ctx context.Context, addr string, port uint16, cfg scanConfig) (string, error) {
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
 
-	conn, err := dialContext(ctx, addr)
+	conn, err := dialContext(ctx, addr, cfg.dialTimeout)
 	if err != nil {
 		return "", err
 	}
@@ -388,7 +575,7 @@ func grabBanner(ctx context.Context, addr string, port uint16) (string, error) {
 	defer stop()
 
 	// 读写共享一个微超时；若上下文的截止时间更早，则优先服从上下文。
-	deadline := time.Now().Add(bannerReadTimeout)
+	deadline := time.Now().Add(cfg.bannerTimeout)
 	if ctxDeadline, ok := ctx.Deadline(); ok && ctxDeadline.Before(deadline) {
 		deadline = ctxDeadline
 	}
