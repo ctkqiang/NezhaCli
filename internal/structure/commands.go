@@ -37,11 +37,11 @@ func (c *Console) cmdHelp(arguments []string) {
 		[]string{"命令", "用途"},
 		[][]string{
 			{"help [命令]", "查看总览或单条命令用法"},
-			{"search <关键词>", "按名称、类别或描述检索模块"},
+			{"search <关键词>", "按名称、类别、描述或用法检索模块"},
 			{"show modules", "列出全部模块"},
-			{"show options", "查看当前模块参数"},
+			{"options / option", "查看当前模块参数（show options 简写）"},
 			{"use <序号|名称>", "选中模块"},
-			{"info", "查看当前模块详情"},
+			{"info", "查看模块说明、参数与用法示例"},
 			{"set <参数> <值>", "设置当前模块参数"},
 			{"setg <参数> <值>", "设置全局参数，切换模块后仍生效"},
 			{"unset <参数>", "清除当前模块参数"},
@@ -62,11 +62,20 @@ func (c *Console) cmdHelp(arguments []string) {
 		52,
 	))
 
+	printSection(c.out, c.color, "系统命令")
+	fmt.Fprintf(c.out, "  %s%s\n",
+		colorCode(c.color, palette.Gray),
+		"未识别的命令会交给系统 shell 执行，例如 ls、pwd、cat、ping。")
+	fmt.Fprintf(c.out, "  %s%s\n",
+		colorCode(c.color, palette.Gray),
+		"命令在子进程中运行：cd 不会改变控制台自身的工作目录。")
+
 	printSection(c.out, c.color, "工作流")
 	fmt.Fprintf(c.out, "  %s1.%s show modules / search 关键词   # 查看内置能力\n", colorCode(c.color, palette.Green), colorCode(c.color, palette.Reset))
 	fmt.Fprintf(c.out, "  %s2.%s use <序号|名称>                # 选中模块\n", colorCode(c.color, palette.Green), colorCode(c.color, palette.Reset))
-	fmt.Fprintf(c.out, "  %s3.%s set <参数> <值>                # 配参；红色必填项必须设置\n", colorCode(c.color, palette.Green), colorCode(c.color, palette.Reset))
-	fmt.Fprintf(c.out, "  %s4.%s run                            # 执行；红色影响模块需输入 yes\n\n", colorCode(c.color, palette.Green), colorCode(c.color, palette.Reset))
+	fmt.Fprintf(c.out, "  %s3.%s options                        # 查看参数；红色必填项必须 set\n", colorCode(c.color, palette.Green), colorCode(c.color, palette.Reset))
+	fmt.Fprintf(c.out, "  %s4.%s set <参数> <值>                # 配置参数\n", colorCode(c.color, palette.Green), colorCode(c.color, palette.Reset))
+	fmt.Fprintf(c.out, "  %s5.%s run                            # 执行；红色影响模块需输入 yes\n\n", colorCode(c.color, palette.Green), colorCode(c.color, palette.Reset))
 }
 
 /*
@@ -84,8 +93,11 @@ func (c *Console) printCommandHelp(command string) {
 		"set":      "set <参数> <值>\n  设置当前模块参数。含空格的值用双引号包裹。",
 		"setg":     "setg <参数> <值>\n  设置全局参数，切换模块后仍保留。",
 		"run":      "run\n  执行当前模块。主动模块会要求输入 yes 确认授权。",
-		"search":   "search <关键词>\n  在名称、别名、类别与描述中检索，多关键词为与关系。",
-		"show":     "show modules | options | categories | globals\n  查看模块、参数、类别或全局变量。",
+		"search":   "search <关键词>\n  在名称、别名、类别、描述与用法中检索，多关键词为与关系。",
+		"show":     "show modules | options | info | categories | globals\n  查看模块、参数、详情、类别或全局变量。",
+		"options":  "options / option\n  查看当前模块参数，等价于 show options。",
+		"info":     "info\n  查看当前模块的说明、参数表、用法示例与参考链接。",
+		"shell":    "<系统命令>\n  未识别的命令会自动交给系统 shell 执行，例如 ls -la、pwd、cat 文件。\n  命令在子进程中运行，cd 不会改变控制台自身的工作目录。",
 		"sessions": "sessions\n  查看本次控制台会话的模块执行记录。",
 		"report":   "report [文件路径]\n  把本次会话的执行记录、模块参数与命令历史导出为 Markdown 报告，默认 nezha-report.md。",
 		"repeat":   "repeat <次数> <间隔> <命令...>\n  周期性重复执行命令，例如 repeat 5 1s run；Ctrl+C 中断剩余循环。",
