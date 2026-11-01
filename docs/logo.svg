@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="ring" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF4D4F"/>
+      <stop offset="100%" stop-color="#FAAD14"/>
+    </linearGradient>
+    <radialGradient id="core" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFF1F0"/>
+      <stop offset="60%" stop-color="#FF7875"/>
+      <stop offset="100%" stop-color="#CF1322"/>
+    </radialGradient>
+  </defs>
+  <circle cx="100" cy="100" r="92" fill="none" stroke="url(#ring)" stroke-width="6"/>
+  <circle cx="100" cy="100" r="70" fill="none" stroke="url(#ring)" stroke-width="3" opacity="0.6"/>
+  <g stroke="url(#ring)" stroke-width="4" stroke-linecap="round" fill="none" opacity="0.85">
+    <path d="M100 30 L100 55"/>
+    <path d="M100 145 L100 170"/>
+    <path d="M30 100 L55 100"/>
+    <path d="M145 100 L170 100"/>
+    <path d="M50 50 L68 68"/>
+    <path d="M132 132 L150 150"/>
+    <path d="M150 50 L132 68"/>
+    <path d="M68 132 L50 150"/>
+  </g>
+  <circle cx="100" cy="100" r="42" fill="url(#core)"/>
+  <text x="100" y="118" font-family="serif" font-size="52" font-weight="bold" fill="#FFF" text-anchor="middle">哪</text>
+</svg>

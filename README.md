@@ -1,5 +1,46 @@
 # 哪吒网络安全终端 · Nezha CLI
 
+<p align="center">
+  <img src="docs/logo.svg" alt="Nezha CLI Logo" width="120" height="120">
+</p>
+<p align="center">
+  <strong>面向 Termux / Android ARM64 / 非 Root 的集中式战术控制台</strong>
+</p>
+<p align="center">
+  作者：<strong>钟智强</strong> · 哪吒网络安全
+</p>
+<p align="center">
+  <a href="https://go.dev/"><img src="https://img.shields.io/badge/语言-Go_1.27-00ADD8.svg" alt="Go"></a>
+  <a href="#快速开始"><img src="https://img.shields.io/badge/平台-Termux_·_Linux_·_macOS-165DFF.svg" alt="平台"></a>
+  <a href="#构建与测试"><img src="https://img.shields.io/badge/构建-make-00B42A.svg" alt="make"></a>
+  <a href="#原生模块"><img src="https://img.shields.io/badge/模块-31_个内置-722ED1.svg" alt="模块"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/许可证-GPL--3.0-blue.svg" alt="GPL-3.0"></a>
+</p>
+
+---
+
+## 目录
+
+- [项目概述](#项目概述)
+- [这不是外部工具启动器](#这不是外部工具启动器)
+- [当前状态](#当前状态)
+- [快速开始](#快速开始)
+- [第一次进入控制台](#第一次进入控制台)
+- [原生模块](#原生模块)
+- [ESP 协处理器路径](#esp-协处理器路径)
+- [与作者 Go 工具的关系](#与作者-go-工具的关系)
+- [外部模块适配层](#外部模块适配层)
+- [非 Root Termux 能力边界](#非-root-termux-能力边界)
+- [构建与测试](#构建与测试)
+- [项目结构](#项目结构)
+- [文档](#文档)
+- [安全与法律声明](#安全与法律声明)
+- [作者](#作者)
+
+---
+
+## 项目概述
+
 > 在阴影中观察，在授权下行动。
 
 `nezha` 是一个面向 **Termux / Android ARM64 / 非 Root** 的集中式战术控制台。它把侦察、Web 审计、TLS/DNS/WHOIS、局域网发现、ESP 协处理器无线操作收进同一个 msfconsole 风格界面，而不是给每个外部工具套一层编号菜单。
@@ -60,6 +101,13 @@
 ---
 
 ## 快速开始
+
+<p align="center">
+  <img src="docs/img/qr-github.svg" alt="NezhaCli GitHub 仓库二维码" width="160" height="160">
+</p>
+<p align="center">
+  <sub>扫码访问 <a href="https://github.com/ctkqiang/NezhaCli">github.com/ctkqiang/NezhaCli</a></sub>
+</p>
 
 ### Termux / Android ARM64
 
