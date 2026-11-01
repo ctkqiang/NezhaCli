@@ -1,9 +1,12 @@
 package main
 
-import "nezha_cli/pkg/logger"
+import (
+	"nezha_cli/pkg/config"
+	"nezha_cli/pkg/logger"
+)
 
 func main() {
 	logger.SetLevel(logger.LevelInfo)
 
-	logger.Info("哪吒网络安全系统启动成功")
+	logger.Info("%s启动成功", config.AppName)
 }

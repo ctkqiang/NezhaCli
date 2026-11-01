@@ -8,7 +8,8 @@ TARGET = $(BINARY_PATH)$(APP_NAME)
 build:
 	@echo "[+] 开始跨平台编译 $(APP_NAME)..."
 	@mkdir -p $(BINARY_PATH)
-	go build -o $(TARGET) ./cmd/nezha/main.go
+	@rm -f $(TARGET)
+	go build -a -o $(TARGET) ./cmd/nezha/main.go
 	@chmod +x $(TARGET)
 	@echo "[★] 编译完成: $(TARGET)"
 
