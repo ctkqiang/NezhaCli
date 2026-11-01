@@ -26,6 +26,10 @@ type linuxTermios struct {
 makeRaw 读取当前终端属性，关闭回显、行缓冲与扩展输入处理，
 保持 ISIG 开启让 Ctrl+C 仍能产生 SIGINT 取消运行中的模块。
 
+注意：保留 OPOST 输出处理，让终端继续把 \n 翻译为 \r\n。
+清除 OPOST 后所有 \n 输出都不再回行首，横幅与日志会
+逐行阶梯状右移，因此原始模式只改造输入侧标志位。
+
 参数:
   - fd (uintptr): 终端文件描述符。
 
@@ -41,7 +45,6 @@ func makeRaw(fd uintptr) (func(), error) {
 
 	raw := state
 	raw.Iflag &^= syscall.IGNBRK | syscall.BRKINT | syscall.PARMRK | syscall.ISTRIP | syscall.INLCR | syscall.IGNCR | syscall.ICRNL | syscall.IXON
-	raw.Oflag &^= syscall.OPOST
 	raw.Lflag &^= syscall.ECHO | syscall.ECHONL | syscall.ICANON | syscall.IEXTEN
 	raw.Cflag &^= syscall.CSIZE | syscall.PARENB
 	raw.Cflag |= syscall.CS8
